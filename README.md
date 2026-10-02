@@ -28,14 +28,14 @@ npm install
 npm run dev
 ```
 
-Vite prints a local URL (usually `http://localhost:5173`). Open it in your browser. To make a production build, run `npm run build`.
+Vite prints a local URL (usually `http://localhost:5173`). Open it in your browser. Run `npm test` to execute the component tests, or `npm run build` to make a production build.
 
 ## Using the app
 
 - Create an account or sign in with email and password.
 - Add an application with its company, role, status, date, posting link, notes, and next step.
 - Search, filter, sort, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
-- Click a company or role to analyze its saved job posting link. Rolecall reads the page, asks an AI model to identify stated skills, and saves the description, evidence, and skill list to that application. Results are cached for the link and reused when you open the application again.
+- Click a company or role to open its details and analyze its saved job posting link. Rolecall reads the page, asks an AI model to identify stated skills, and saves the description, evidence, and skill list to that application. Results are cached for the link and reused when you open the application again. Use **View skills** in the details to go to the Skills page.
 - If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
 
 ### Configure job-posting analysis
