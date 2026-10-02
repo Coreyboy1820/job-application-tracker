@@ -39,6 +39,31 @@ describe('SkillsPage', () => {
     expect(screen.getByText('Loading your skills…')).toBeTruthy()
   })
 
+  it('collapses a job section independently and keeps its identity visible', () => {
+    const firstApplication = createApplication({
+      skills: [requiredSkill],
+      skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/1',
+    })
+    const secondApplication = createApplication({
+      id: 'application-2',
+      company: 'Globex',
+      url: 'https://example.com/jobs/2',
+      skills: [preferredSkill],
+      skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/2',
+    })
+    render(<SkillsPage applications={[firstApplication, secondApplication]} loading={false} onOpenApplication={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Acme skills' }))
+
+    expect(screen.getByRole('button', { name: 'Expand Acme skills' }).getAttribute('aria-expanded')).toBe('false')
+    expect(screen.getByRole('heading', { name: 'Acme' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /TypeScript/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Collapse Globex skills' }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText('React')).toBeTruthy()
+  })
+
   it('opens the selected application from its action button', () => {
     const onOpenApplication = vi.fn()
     const application = createApplication({
