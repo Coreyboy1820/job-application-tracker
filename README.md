@@ -24,11 +24,15 @@ For GitHub Actions builds, add repository variables named `VITE_SUPABASE_URL` an
 You need Node.js and npm installed. From this folder, run:
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
 Vite prints a local URL (usually `http://localhost:5173`). Open it in your browser. Run `npm test` to execute the component tests, or `npm run build` to make a production build.
+
+### Continuous integration
+
+The **CI / Build and test** check runs on pull requests targeting `main` and pushes to `main`. It installs the exact dependency versions from `package-lock.json`, builds the production app, and then runs the test suite. The check fails if either command fails.
 
 ## Using the app
 
@@ -47,6 +51,8 @@ The analyzer runs as a Supabase Edge Function so the Gemini API key stays on the
 npx supabase db push
 npx supabase functions deploy analyze-job-posting
 ```
+
+Gemini generates three general interview questions per normalized skill name. Those question sets are stored in an account-scoped cache and reused when the same skill appears in another application; existing saved analyses are refreshed once the next time the application is opened.
 
 You can also store `GEMINI_API_KEY=your-key` in an ignored `.env` file and run `npx supabase secrets set --env-file .env`. Keep that file private and out of Git.
 

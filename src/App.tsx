@@ -38,11 +38,12 @@ type ApplicationRow = {
   skills: JobSkill[]
   skills_analyzed_at: string | null
   skills_source_url: string
+  interview_questions_version: number
   interviews: Interview[]
 }
 
 const statuses: Status[] = ['Interested', 'Applied', 'Interviewing', 'Offer', 'Rejected']
-const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step, job_description, skills, skills_analyzed_at, skills_source_url, interviews'
+const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step, job_description, skills, skills_analyzed_at, skills_source_url, interview_questions_version, interviews'
 
 function fromRow(row: ApplicationRow): Application {
   return {
@@ -59,6 +60,7 @@ function fromRow(row: ApplicationRow): Application {
     skills: row.skills ?? [],
     skillsAnalyzedAt: row.skills_analyzed_at,
     skillsSourceUrl: row.skills_source_url,
+    interviewQuestionsVersion: row.interview_questions_version,
     interviews: row.interviews ?? [],
   }
 }
@@ -79,6 +81,7 @@ function toRow(application: Application, userId: string) {
     skills: application.skills ?? [],
     skills_analyzed_at: application.skillsAnalyzedAt ?? null,
     skills_source_url: application.skillsSourceUrl ?? '',
+    interview_questions_version: application.interviewQuestionsVersion ?? 0,
     interviews: application.interviews ?? [],
   }
 }
@@ -252,7 +255,7 @@ function App() {
       setAnalysis({ id: application.id, state: 'error', message: 'Add a job posting link to analyze this role.' })
       return
     }
-    if (application.skillsAnalyzedAt && application.skillsSourceUrl === application.url) {
+    if (application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && application.interviewQuestionsVersion === 1) {
       setAnalysis(null)
       return
     }
@@ -273,20 +276,21 @@ function App() {
         setAnalysis({ id: application.id, state: 'error', message })
         return
       }
-      const result = data as { jobDescription: string; skills: JobSkill[]; analyzedAt: string; sourceUrl: string }
+      const result = data as { jobDescription: string; skills: JobSkill[]; analyzedAt: string; sourceUrl: string; interviewQuestionsVersion: number }
       setApplications((current) => current.map((item) => item.id === application.id ? {
         ...item,
         jobDescription: result.jobDescription,
         skills: result.skills,
         skillsAnalyzedAt: result.analyzedAt,
         skillsSourceUrl: result.sourceUrl,
+        interviewQuestionsVersion: result.interviewQuestionsVersion,
       } : item))
       setAnalysis(null)
     }).catch((reason: unknown) => {
       if (active) setAnalysis({ id: application.id, state: 'error', message: reason instanceof Error ? reason.message : 'Could not analyze this posting.' })
     })
     return () => { active = false }
-  }, [client, selectedApplicationId, selectedApplication?.id, selectedApplication?.url, selectedApplication?.skillsAnalyzedAt, selectedApplication?.skillsSourceUrl, analysisAttempt])
+  }, [client, selectedApplicationId, selectedApplication?.id, selectedApplication?.url, selectedApplication?.skillsAnalyzedAt, selectedApplication?.skillsSourceUrl, selectedApplication?.interviewQuestionsVersion, analysisAttempt])
 
   async function addApplication(application: Omit<Application, 'id'>): Promise<boolean> {
     if (!client || !userId) return false
@@ -367,6 +371,7 @@ function App() {
           skills: [],
           skills_analyzed_at: null,
           skills_source_url: '',
+          interview_questions_version: 0,
         } : {}),
       })
       .eq('id', id)
@@ -391,13 +396,14 @@ function App() {
       skills: [],
       skills_analyzed_at: null,
       skills_source_url: '',
+      interview_questions_version: 0,
     }).eq('id', id)
     if (updateError) {
       setError(`Could not save the job posting link: ${updateError.message}`)
       return false
     }
     setApplications((current) => current.map((item) => item.id === id ? {
-      ...item, url, jobDescription: '', skills: [], skillsAnalyzedAt: null, skillsSourceUrl: '',
+      ...item, url, jobDescription: '', skills: [], skillsAnalyzedAt: null, skillsSourceUrl: '', interviewQuestionsVersion: 0,
     } : item))
     return true
   }
