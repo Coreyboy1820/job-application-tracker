@@ -34,7 +34,6 @@ type ApplicationRow = {
 }
 
 const statuses: Status[] = ['Interested', 'Applied', 'Interviewing', 'Offer', 'Rejected']
-const legacyStorageKey = 'rolecall-applications-v1'
 const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step'
 
 function fromRow(row: ApplicationRow): Application {
@@ -419,3 +418,4 @@ function formatDate(value: string) {
 }
 
 export default App
+
