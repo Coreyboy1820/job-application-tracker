@@ -18,7 +18,10 @@ Vite prints a local URL (usually `http://localhost:5173`). Open it in your brows
 - Add a role with its company, location, date, status, posting link, notes, and next step.
 - Filter by status or search company, role, and location.
 - Change a status from the table and delete an application.
+- Click a company or role to open its details, save the job description, and review or edit skills found in that text.
 - Save the list in this device's browser database with IndexedDB.
+
+Skill finding currently uses a small local list of common technologies and engineering terms. It is a starting point, so review the matches and add or remove skills before saving. Job board pages often block direct browser access, so the description is pasted into the application details for now.
 
 ## How the pieces fit together
 
@@ -26,7 +29,9 @@ Vite prints a local URL (usually `http://localhost:5173`). Open it in your brows
 - `src/App.tsx` defines the screen, form, and filters.
 - `src/storage.ts` opens the on-device IndexedDB database and reads and writes application records.
 - `src/types.ts` defines the application and status types shared by the UI and storage layer.
+- `src/skills.ts` contains the local skill matcher used by the application details view.
 - `src/styles.css` contains the responsive page and component styles.
 - `index.html` is the single page Vite serves; React mounts into its `#root` element.
 
 Data currently stays in the browser profile where it was entered. On first launch after this update, existing `localStorage` records are copied into IndexedDB and then the old copy is removed. This local database does not sync between devices. A hosted database and user accounts are a separate next step.
+
