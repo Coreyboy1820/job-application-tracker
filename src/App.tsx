@@ -462,7 +462,7 @@ function App() {
           {dataLoading ? <div className="empty-state"><p>Loading your applications…</p></div> : visibleApplications.length > 0 ? (
             <div className="table-wrap"><table><thead><tr><th>COMPANY & ROLE</th><th>DATE APPLIED</th><th>STATUS</th><th>NEXT STEP</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
               {visibleApplications.map((application) => <tr key={application.id}>
-                <td><div className="company-cell"><div className="company-logo" aria-hidden="true">{application.company.slice(0, 1).toUpperCase()}</div><button type="button" className="company-info application-open-button" onClick={() => { navigateTo('skills'); setSelectedApplicationId(application.id) }}><strong>{application.company}</strong><span>{application.role}{application.location ? ` · ${application.location}` : ''}</span>{application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && <span className="analysis-status">{application.skills?.length ?? 0} skills analyzed</span>}</button></div></td>
+                <td><div className="company-cell"><div className="company-logo" aria-hidden="true">{application.company.slice(0, 1).toUpperCase()}</div><button type="button" className="company-info application-open-button" onClick={() => setSelectedApplicationId(application.id)}><strong>{application.company}</strong><span>{application.role}{application.location ? ` · ${application.location}` : ''}</span>{application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && <span className="analysis-status">{application.skills?.length ?? 0} skills analyzed</span>}</button></div></td>
                 <td className="date-cell">{formatDate(application.dateApplied)}</td>
                 <td><StatusSelect status={application.status} onChange={(status) => void updateStatus(application.id, status)} /></td>
                 <td className="next-step-cell">{application.nextStep || <span className="muted-text">Add a reminder</span>}</td>
@@ -487,6 +487,7 @@ function App() {
         onClose={() => { setSelectedApplicationId(null); setAnalysis(null) }}
         onRetry={() => setAnalysisAttempt((attempt) => attempt + 1)}
         onUpdateUrl={updateApplicationUrl}
+        onViewSkills={() => { setSelectedApplicationId(null); setAnalysis(null); navigateTo('skills') }}
       />}
     </div>
   )
@@ -565,12 +566,13 @@ function ApplicationModal({ application, onClose, onSave }: { application: Appli
   </form></section></div>
 }
 
-function ApplicationDetailView({ application, analysis, onClose, onRetry, onUpdateUrl }: {
+function ApplicationDetailView({ application, analysis, onClose, onRetry, onUpdateUrl, onViewSkills }: {
   application: Application
   analysis: { state: 'loading' | 'error'; message?: string } | null
   onClose: () => void
   onRetry: () => void
   onUpdateUrl: (id: string, url: string) => Promise<boolean>
+  onViewSkills: () => void
 }) {
   const [url, setUrl] = useState(application.url)
   const [savingUrl, setSavingUrl] = useState(false)
@@ -589,6 +591,7 @@ function ApplicationDetailView({ application, analysis, onClose, onRetry, onUpda
       <header className="application-detail-header"><div><div className="eyebrow">APPLICATION</div><h2 id="application-detail-title">{application.company}</h2><p>{application.role}{application.location ? ` · ${application.location}` : ''}</p></div><button className="icon-button" aria-label="Close application details" onClick={onClose}><X size={18} /></button></header>
       <div className="application-detail-content">
         <div className="application-detail-meta"><span className={`status-pill status-${application.status.toLowerCase()}`}><span className="status-dot" />{application.status}</span><span>Applied {formatDate(application.dateApplied)}</span></div>
+        <button type="button" className="secondary-button" onClick={onViewSkills}><Sparkles size={14} /> View skills</button>
         {application.url && <a className="open-job-posting-link" href={application.url} target="_blank" rel="noreferrer">Open original posting <ArrowUpRight size={13} /></a>}
         <form className="posting-url-form" onSubmit={(event) => void saveUrl(event)}><label className="field"><span>Job posting link</span><input type="url" required value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://company.com/careers/role" /></label>{hasUrlChanged && <button className="secondary-button" type="submit" disabled={savingUrl}>{savingUrl ? 'Saving link…' : 'Save new link and analyze'}</button>}</form>
         <p className="analysis-privacy-note">Rolecall reads the public posting, sends its text for skill analysis, and saves the results to your account.</p>
