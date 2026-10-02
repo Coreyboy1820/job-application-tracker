@@ -24,11 +24,15 @@ For GitHub Actions builds, add repository variables named `VITE_SUPABASE_URL` an
 You need Node.js and npm installed. From this folder, run:
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
 Vite prints a local URL (usually `http://localhost:5173`). Open it in your browser. Run `npm test` to execute the component tests, or `npm run build` to make a production build.
+
+### Continuous integration
+
+The **CI / Build and test** check runs on pull requests targeting `main` and pushes to `main`. It installs the exact dependency versions from `package-lock.json`, builds the production app, and then runs the test suite. The check fails if either command fails.
 
 ## Using the app
 
