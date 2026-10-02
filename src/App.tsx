@@ -144,6 +144,11 @@ function App() {
     setActivePage(page)
   }
 
+  function openApplication(id: string) {
+    navigateTo('applications')
+    setSelectedApplicationId(id)
+  }
+
   useEffect(() => {
     if (!client) {
       setAuthLoading(false)
@@ -431,7 +436,7 @@ function App() {
         <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> {activePage === 'skills' ? 'Skills' : 'Applications'}</span><button className="sign-out-button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button></header>
         {error && <div className="storage-message storage-error" role="alert">{error}</div>}
         {notice && <div className="storage-message storage-notice" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={() => setNotice(null)}><X size={15} /></button></div>}
-        {activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={setSelectedApplicationId} /> : <>
+        {activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} /> : <>
         <section className="page-heading">
           <div><div className="eyebrow">JOB SEARCH DASHBOARD</div><h1>Applications</h1><p className="page-subtitle">A little progress every day adds up.</p></div>
           <button className="primary-button" onClick={() => setIsFormOpen(true)}><CirclePlus size={17} /> Add application</button>
