@@ -191,12 +191,10 @@ async function extractSkills(text: string, company: string, role: string): Promi
             evidence: { type: 'string' },
           },
           required: ['name', 'category', 'importance', 'evidence'],
-          additionalProperties: false,
         },
       },
     },
     required: ['skills'],
-    additionalProperties: false,
   }
   const model = Deno.env.get('GEMINI_MODEL') || 'gemini-3.1-flash-lite'
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
