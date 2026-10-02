@@ -22,4 +22,5 @@ export type Application = {
   skills?: JobSkill[]
   skillsAnalyzedAt?: string | null
   skillsSourceUrl?: string
+  interviewQuestionsVersion?: number
 }

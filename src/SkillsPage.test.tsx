@@ -83,7 +83,7 @@ describe('SkillsPage', () => {
     expect(onOpenApplication).toHaveBeenCalledWith('application-1')
   })
 
-  it('shows interview questions for the selected skill and keeps questions scoped to each job', () => {
+  it('shows the saved interview questions for a repeated skill across applications', () => {
     const application = createApplication({
       skills: [requiredSkill],
       skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
@@ -94,7 +94,7 @@ describe('SkillsPage', () => {
       company: 'Globex',
       role: 'Platform Engineer',
       url: 'https://example.com/jobs/2',
-      skills: [{ ...requiredSkill, interviewQuestions: ['How have you used TypeScript in a platform service?'] }],
+      skills: [{ ...requiredSkill }],
       skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/2',
     })
@@ -104,16 +104,14 @@ describe('SkillsPage', () => {
     fireEvent.click(firstSkill)
 
     expect(screen.getByText('How do you use TypeScript to prevent runtime errors?')).toBeTruthy()
-    expect(screen.queryByText('How have you used TypeScript in a platform service?')).toBeNull()
 
     const [, secondSkill] = screen.getAllByRole('button', { name: /TypeScript/ })
     fireEvent.click(secondSkill)
 
-    expect(screen.queryByText('How do you use TypeScript to prevent runtime errors?')).toBeNull()
-    expect(screen.getByText('How have you used TypeScript in a platform service?')).toBeTruthy()
+    expect(screen.getByText('How do you use TypeScript to prevent runtime errors?')).toBeTruthy()
   })
 
-  it('provides role-relevant fallback questions for skills from older saved analyses', () => {
+  it('explains how to generate interview questions for older saved analyses', () => {
     const application = createApplication({
       skills: [{ ...requiredSkill, interviewQuestions: undefined }],
       skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
@@ -123,7 +121,7 @@ describe('SkillsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /TypeScript/ }))
 
-    expect(screen.getByText('How have you applied TypeScript to work relevant to a Frontend Engineer role?')).toBeTruthy()
+    expect(screen.getByText('Interview questions are not available for this saved analysis yet. Open the application to generate them.')).toBeTruthy()
   })
 
   it('filters analyzed applications by skill importance', () => {

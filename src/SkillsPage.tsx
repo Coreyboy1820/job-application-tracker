@@ -98,9 +98,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication }:
                 {skills.length ? <div className="skills-library-grid">{skills.map((skill, index) => {
                   const isSelected = selectedSkill?.applicationId === application.id && selectedSkill.skillName === skill.name
                   const questionsId = `skill-questions-${application.id}-${index}`
-                  const questions = skill.interviewQuestions?.length
-                    ? skill.interviewQuestions
-                    : fallbackInterviewQuestions(skill.name, application.role)
+                  const questions = skill.interviewQuestions ?? []
                   return <article className="analyzed-skill" key={`${skill.name}-${skill.evidence}`}>
                     <button
                       type="button"
@@ -116,7 +114,9 @@ export default function SkillsPage({ applications, loading, onOpenApplication }:
                     <blockquote>“{skill.evidence}”</blockquote>
                     {isSelected && <div className="skill-practice-questions" id={questionsId}>
                       <h4>Interview practice for {skill.name}</h4>
-                      <ol>{questions.map((question, questionIndex) => <li key={`${questionIndex}-${question}`}>{question}</li>)}</ol>
+                      {questions.length
+                        ? <ol>{questions.map((question, questionIndex) => <li key={`${questionIndex}-${question}`}>{question}</li>)}</ol>
+                        : <p>Interview questions are not available for this saved analysis yet. Open the application to generate them.</p>}
                     </div>}
                   </article>
                 })}</div> : <div className="no-skills-found">{application.skills?.length ? `No ${importance.toLowerCase()} skills in this posting.` : 'No specific skills were found in the saved job posting.'}</div>}
@@ -134,14 +134,6 @@ export default function SkillsPage({ applications, loading, onOpenApplication }:
 
 function SkillStat({ label, value, caption }: { label: string; value: number; caption: string }) {
   return <article className="stat-card skills-stat-card"><div className="stat-icon violet"><Sparkles size={16} /></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-caption">{caption}</div></article>
-}
-
-function fallbackInterviewQuestions(skillName: string, role: string): string[] {
-  return [
-    `How have you applied ${skillName} to work relevant to a ${role} role?`,
-    `What trade-offs or challenges have you encountered when using ${skillName}, and how did you address them?`,
-    `How would you decide when ${skillName} is the right approach for a problem in this role?`,
-  ]
 }
 
 function formatDate(value: string) {
