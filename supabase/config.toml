@@ -5,3 +5,7 @@ enabled = true
 
 [db]
 major_version = 17
+
+[functions.analyze-job-posting]
+verify_jwt = true
+
