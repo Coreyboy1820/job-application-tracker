@@ -19,6 +19,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-package-lock
+      - name: Test app
+        run: npm test
       - name: Build app
         run: npm run build
         env:
