@@ -12,12 +12,13 @@ import {
   LogOut,
   MoreHorizontal,
   Search,
+  Sparkles,
   X,
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { loadApplications as loadLocalApplications } from './storage'
-import type { Application, Status } from './types'
+import type { Application, JobSkill, Status } from './types'
 import './cloud.css'
 
 type ApplicationRow = {
@@ -31,10 +32,14 @@ type ApplicationRow = {
   url: string
   notes: string
   next_step: string
+  job_description: string
+  skills: JobSkill[]
+  skills_analyzed_at: string | null
+  skills_source_url: string
 }
 
 const statuses: Status[] = ['Interested', 'Applied', 'Interviewing', 'Offer', 'Rejected']
-const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step'
+const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step, job_description, skills, skills_analyzed_at, skills_source_url'
 
 function fromRow(row: ApplicationRow): Application {
   return {
@@ -47,6 +52,10 @@ function fromRow(row: ApplicationRow): Application {
     url: row.url,
     notes: row.notes,
     nextStep: row.next_step,
+    jobDescription: row.job_description,
+    skills: row.skills ?? [],
+    skillsAnalyzedAt: row.skills_analyzed_at,
+    skillsSourceUrl: row.skills_source_url,
   }
 }
 
@@ -62,6 +71,10 @@ function toRow(application: Application, userId: string) {
     url: application.url,
     notes: application.notes,
     next_step: application.nextStep,
+    job_description: application.jobDescription ?? '',
+    skills: application.skills ?? [],
+    skills_analyzed_at: application.skillsAnalyzedAt ?? null,
+    skills_source_url: application.skillsSourceUrl ?? '',
   }
 }
 
@@ -105,6 +118,9 @@ function App() {
   const [search, setSearch] = useState('')
   const [sortNewest, setSortNewest] = useState(true)
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null)
+  const [analysis, setAnalysis] = useState<{ id: string; state: 'loading' | 'error'; message?: string } | null>(null)
+  const [analysisAttempt, setAnalysisAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [legacyApplications, setLegacyApplications] = useState<Application[]>([])
@@ -188,6 +204,50 @@ function App() {
   const interviewCount = applications.filter((item) => item.status === 'Interviewing').length
   const offerCount = applications.filter((item) => item.status === 'Offer').length
   const userId = session?.user.id
+  const selectedApplication = applications.find((item) => item.id === selectedApplicationId) ?? null
+
+  useEffect(() => {
+    if (!selectedApplication || !client) return
+    const application = selectedApplication
+    if (!application.url) {
+      setAnalysis({ id: application.id, state: 'error', message: 'Add a job posting link to analyze this role.' })
+      return
+    }
+    if (application.skillsAnalyzedAt && application.skillsSourceUrl === application.url) {
+      setAnalysis(null)
+      return
+    }
+
+    let active = true
+    setAnalysis({ id: application.id, state: 'loading' })
+    void client.functions.invoke('analyze-job-posting', { body: { applicationId: application.id } }).then(async ({ data, error: invokeError }) => {
+      if (!active) return
+      if (invokeError) {
+        let message = invokeError.message
+        const context = (invokeError as { context?: unknown }).context
+        if (context instanceof Response) {
+          try {
+            const body = await context.json() as { error?: string }
+            if (body.error) message = body.error
+          } catch { /* Use the SDK's summary when the response has no JSON body. */ }
+        }
+        setAnalysis({ id: application.id, state: 'error', message })
+        return
+      }
+      const result = data as { jobDescription: string; skills: JobSkill[]; analyzedAt: string; sourceUrl: string }
+      setApplications((current) => current.map((item) => item.id === application.id ? {
+        ...item,
+        jobDescription: result.jobDescription,
+        skills: result.skills,
+        skillsAnalyzedAt: result.analyzedAt,
+        skillsSourceUrl: result.sourceUrl,
+      } : item))
+      setAnalysis(null)
+    }).catch((reason: unknown) => {
+      if (active) setAnalysis({ id: application.id, state: 'error', message: reason instanceof Error ? reason.message : 'Could not analyze this posting.' })
+    })
+    return () => { active = false }
+  }, [client, selectedApplicationId, selectedApplication?.id, selectedApplication?.url, selectedApplication?.skillsAnalyzedAt, selectedApplication?.skillsSourceUrl, analysisAttempt])
 
   async function addApplication(application: Omit<Application, 'id'>): Promise<boolean> {
     if (!client || !userId) return false
@@ -224,6 +284,26 @@ function App() {
     }
     const updated = fromRow(data as ApplicationRow)
     setApplications((current) => current.map((item) => item.id === id ? updated : item))
+  }
+
+  async function updateApplicationUrl(id: string, url: string): Promise<boolean> {
+    if (!client) return false
+    setError(null)
+    const { error: updateError } = await client.from('applications').update({
+      url,
+      job_description: '',
+      skills: [],
+      skills_analyzed_at: null,
+      skills_source_url: '',
+    }).eq('id', id)
+    if (updateError) {
+      setError(`Could not save the job posting link: ${updateError.message}`)
+      return false
+    }
+    setApplications((current) => current.map((item) => item.id === id ? {
+      ...item, url, jobDescription: '', skills: [], skillsAnalyzedAt: null, skillsSourceUrl: '',
+    } : item))
+    return true
   }
 
   async function deleteApplication(id: string) {
@@ -321,7 +401,7 @@ function App() {
           {dataLoading ? <div className="empty-state"><p>Loading your applications…</p></div> : visibleApplications.length > 0 ? (
             <div className="table-wrap"><table><thead><tr><th>COMPANY & ROLE</th><th>DATE APPLIED</th><th>STATUS</th><th>NEXT STEP</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
               {visibleApplications.map((application) => <tr key={application.id}>
-                <td><div className="company-cell"><div className="company-logo" aria-hidden="true">{application.company.slice(0, 1).toUpperCase()}</div><div className="company-info"><strong>{application.company}</strong><span>{application.role}{application.location ? ` · ${application.location}` : ''}</span></div></div></td>
+                <td><div className="company-cell"><div className="company-logo" aria-hidden="true">{application.company.slice(0, 1).toUpperCase()}</div><button type="button" className="company-info application-open-button" onClick={() => setSelectedApplicationId(application.id)}><strong>{application.company}</strong><span>{application.role}{application.location ? ` · ${application.location}` : ''}</span>{application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && <span className="analysis-status">{application.skills?.length ?? 0} skills analyzed</span>}</button></div></td>
                 <td className="date-cell">{formatDate(application.dateApplied)}</td>
                 <td><StatusSelect status={application.status} onChange={(status) => void updateStatus(application.id, status)} /></td>
                 <td className="next-step-cell">{application.nextStep || <span className="muted-text">Add a reminder</span>}</td>
@@ -335,6 +415,14 @@ function App() {
       </main>
 
       {isFormOpen && <ApplicationModal onClose={() => setIsFormOpen(false)} onSave={addApplication} />}
+      {selectedApplication && <ApplicationDetailView
+        key={selectedApplication.id}
+        application={selectedApplication}
+        analysis={analysis?.id === selectedApplication.id ? analysis : null}
+        onClose={() => { setSelectedApplicationId(null); setAnalysis(null) }}
+        onRetry={() => setAnalysisAttempt((attempt) => attempt + 1)}
+        onUpdateUrl={updateApplicationUrl}
+      />}
     </div>
   )
 }
@@ -412,10 +500,50 @@ function ApplicationModal({ onClose, onSave }: { onClose: () => void; onSave: (a
   </form></section></div>
 }
 
+function ApplicationDetailView({ application, analysis, onClose, onRetry, onUpdateUrl }: {
+  application: Application
+  analysis: { state: 'loading' | 'error'; message?: string } | null
+  onClose: () => void
+  onRetry: () => void
+  onUpdateUrl: (id: string, url: string) => Promise<boolean>
+}) {
+  const [url, setUrl] = useState(application.url)
+  const [savingUrl, setSavingUrl] = useState(false)
+  const isAnalyzed = Boolean(application.skillsAnalyzedAt && application.skillsSourceUrl === application.url)
+  const hasUrlChanged = url.trim() !== application.url
+
+  async function saveUrl(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setSavingUrl(true)
+    if (await onUpdateUrl(application.id, url.trim())) setUrl(url.trim())
+    setSavingUrl(false)
+  }
+
+  return <div className="application-detail-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section className="application-detail" role="dialog" aria-modal="true" aria-labelledby="application-detail-title">
+      <header className="application-detail-header"><div><div className="eyebrow">APPLICATION</div><h2 id="application-detail-title">{application.company}</h2><p>{application.role}{application.location ? ` · ${application.location}` : ''}</p></div><button className="icon-button" aria-label="Close application details" onClick={onClose}><X size={18} /></button></header>
+      <div className="application-detail-content">
+        <div className="application-detail-meta"><span className={`status-pill status-${application.status.toLowerCase()}`}><span className="status-dot" />{application.status}</span><span>Applied {formatDate(application.dateApplied)}</span></div>
+        {application.url && <a className="open-job-posting-link" href={application.url} target="_blank" rel="noreferrer">Open original posting <ArrowUpRight size={13} /></a>}
+        <form className="posting-url-form" onSubmit={(event) => void saveUrl(event)}><label className="field"><span>Job posting link</span><input type="url" required value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://company.com/careers/role" /></label>{hasUrlChanged && <button className="secondary-button" type="submit" disabled={savingUrl}>{savingUrl ? 'Saving link…' : 'Save new link and analyze'}</button>}</form>
+        <p className="analysis-privacy-note">Rolecall reads the public posting, sends its text for skill analysis, and saves the results to your account.</p>
+        {analysis?.state === 'loading' && <div className="analysis-loading" role="status"><span className="analysis-spinner" /><div><strong>Reading the posting and finding skills</strong><p>This usually takes a few seconds. We’ll save the results to this application.</p></div></div>}
+        {analysis?.state === 'error' && <div className="analysis-error" role="alert"><div><strong>We couldn’t analyze this posting</strong><p>{analysis.message}</p></div>{application.url && <button type="button" className="secondary-button" onClick={onRetry}>Retry</button>}</div>}
+        {isAnalyzed && <>
+          <div className="skills-summary"><div><Sparkles size={16} /><strong>{application.skills?.length ?? 0} skills found</strong></div><span>Analyzed {formatDate(application.skillsAnalyzedAt!.slice(0, 10))}</span></div>
+          {application.skills?.length ? <div className="analyzed-skills">{application.skills.map((skill) => <article className="analyzed-skill" key={`${skill.name}-${skill.evidence}`}><div className="analyzed-skill-heading"><strong>{skill.name}</strong><span className={`importance importance-${skill.importance}`}>{skill.importance}</span></div><div className="analyzed-skill-meta">{skill.category}</div><blockquote>“{skill.evidence}”</blockquote></article>)}</div> : <div className="no-skills-found">No specific skills were found in the saved job posting.</div>}
+          {application.jobDescription && <details className="saved-job-description"><summary>View fetched job description</summary><pre>{application.jobDescription}</pre></details>}
+        </>}
+      </div>
+    </section>
+  </div>
+}
+
 function formatDate(value: string) {
   if (!value) return '—'
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
 }
 
 export default App
+
 
