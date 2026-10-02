@@ -16,21 +16,9 @@ import {
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
+import { loadApplications as loadLocalApplications } from './storage'
+import type { Application, Status } from './types'
 import './cloud.css'
-
-type Status = 'Interested' | 'Applied' | 'Interviewing' | 'Offer' | 'Rejected'
-
-type Application = {
-  id: string
-  company: string
-  role: string
-  location: string
-  dateApplied: string
-  status: Status
-  url: string
-  notes: string
-  nextStep: string
-}
 
 type ApplicationRow = {
   id: string
@@ -46,7 +34,6 @@ type ApplicationRow = {
 }
 
 const statuses: Status[] = ['Interested', 'Applied', 'Interviewing', 'Offer', 'Rejected']
-const legacyStorageKey = 'rolecall-applications-v1'
 const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step'
 
 function fromRow(row: ApplicationRow): Application {
@@ -80,14 +67,11 @@ function toRow(application: Application, userId: string) {
 
 // Keep the previous browser-only entries available so the user can copy them
 // into their new account after the database is set up.
-function readLegacyApplications(): Application[] {
+async function readLegacyApplications(): Promise<Application[]> {
   try {
-    const saved = localStorage.getItem(legacyStorageKey)
-    if (!saved) return []
-    const parsed: unknown = JSON.parse(saved)
-    if (!Array.isArray(parsed)) return []
-
-    return parsed.flatMap((value): Application[] => {
+    // loadApplications includes records already migrated from localStorage into IndexedDB.
+    const saved = await loadLocalApplications()
+    return saved.flatMap((value): Application[] => {
       if (!value || typeof value !== 'object') return []
       const item = value as Partial<Application>
       if (typeof item.company !== 'string' || !item.company.trim()) return []
@@ -179,7 +163,7 @@ function App() {
       } else {
         setApplications((data ?? []).map((row) => fromRow(row as ApplicationRow)))
         const importedKey = `rolecall-imported-v1:${activeUserId}`
-        setLegacyApplications(localStorage.getItem(importedKey) ? [] : readLegacyApplications())
+        setLegacyApplications(localStorage.getItem(importedKey) ? [] : await readLegacyApplications())
       }
       setDataLoading(false)
     }

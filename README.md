@@ -33,13 +33,14 @@ Vite prints a local URL (usually `http://localhost:5173`). Open it in your brows
 - Create an account or sign in with email and password.
 - Add an application with its company, role, status, date, posting link, notes, and next step.
 - Search, filter, sort, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
-- If this browser has records from the earlier local-storage version, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
+- If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
 
 ## How the pieces fit together
 
 - `src/main.tsx` starts React and loads the stylesheet.
 - `src/App.tsx` contains the sign-in screen, application list, forms, and database operations.
 - `src/lib/supabase.ts` creates the browser client from local environment variables.
+- `src/storage.ts` reads existing on-device records so they can be imported into the shared database.
 - `supabase/migrations/` contains the versioned database schema and access rules.
 - `src/styles.css` contains responsive page and component styles.
 - `index.html` is the page Vite serves; React mounts into its `#root` element.
