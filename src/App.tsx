@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import {
   ArrowDownUp,
   ArrowUpRight,
@@ -13,45 +14,42 @@ import {
   SlidersHorizontal,
   X,
 } from 'lucide-react'
-
-type Status = 'Interested' | 'Applied' | 'Interviewing' | 'Offer' | 'Rejected'
-
-type Application = {
-  id: string
-  company: string
-  role: string
-  location: string
-  dateApplied: string
-  status: Status
-  url: string
-  notes: string
-  nextStep: string
-}
+import { loadApplications, saveApplications } from './storage'
+import type { Application, Status } from './types'
 
 const statuses: Status[] = ['Interested', 'Applied', 'Interviewing', 'Offer', 'Rejected']
-const storageKey = 'rolecall-applications-v1'
-
-// This is our storage boundary: React reads and writes the same list to localStorage.
-// Keeping it in one place makes swapping to an API later much easier.
-function readApplications(): Application[] {
-  try {
-    const saved = localStorage.getItem(storageKey)
-    return saved ? (JSON.parse(saved) as Application[]) : []
-  } catch {
-    return []
-  }
-}
 
 function App() {
-  const [applications, setApplications] = useState<Application[]>(readApplications)
+  const [applications, setApplications] = useState<Application[]>([])
+  const [storageReady, setStorageReady] = useState(false)
+  const [storageError, setStorageError] = useState<string | null>(null)
   const [activeStatus, setActiveStatus] = useState<Status | 'All'>('All')
   const [search, setSearch] = useState('')
   const [sortNewest, setSortNewest] = useState(true)
   const [isFormOpen, setIsFormOpen] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(applications))
-  }, [applications])
+    let isCurrent = true
+    loadApplications()
+      .then((savedApplications) => {
+        if (isCurrent) {
+          setApplications(savedApplications)
+          setStorageReady(true)
+        }
+      })
+      .catch(() => {
+        if (isCurrent) setStorageError('Could not open the on-device database. Your saved data has not been changed. Close other Rolecall tabs and reload to try again.')
+      })
+
+    return () => { isCurrent = false }
+  }, [])
+
+  useEffect(() => {
+    if (!storageReady || storageError) return
+    saveApplications(applications).catch(() => {
+      setStorageError('Could not save to the on-device database. Your current changes may not persist; reload after checking browser storage permissions.')
+    })
+  }, [applications, storageReady, storageError])
 
   const visibleApplications = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -103,8 +101,11 @@ function App() {
         <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> Applications</span><span className="today-label"><CalendarDays size={15} /> Your search, organized</span></header>
         <section className="page-heading">
           <div><div className="eyebrow">JOB SEARCH DASHBOARD</div><h1>Applications</h1><p className="page-subtitle">A little progress every day adds up.</p></div>
-          <button className="primary-button" onClick={() => setIsFormOpen(true)}><CirclePlus size={17} /> Add application</button>
+          <button className="primary-button" disabled={!storageReady || Boolean(storageError)} onClick={() => setIsFormOpen(true)}><CirclePlus size={17} /> Add application</button>
         </section>
+
+        {storageError && <div className="storage-message storage-error" role="alert">{storageError}</div>}
+        {!storageReady && !storageError && <div className="storage-message" role="status">Opening your on-device database…</div>}
 
         <section className="stats-grid" aria-label="Application summary">
           <StatCard label="Total applications" value={applications.length} icon={<BriefcaseBusiness size={17} />} tone="violet" caption="Roles in your tracker" />
@@ -131,8 +132,8 @@ function App() {
                 <td><button className="row-menu" aria-label={`Delete ${application.role} at ${application.company}`} title="Delete application" onClick={() => deleteApplication(application.id)}><X size={16} /></button></td>
               </tr>)}
             </tbody></table></div>
-          ) : <EmptyState hasApplications={applications.length > 0} onAdd={() => setIsFormOpen(true)} />}
-          <div className="panel-footer"><span>Showing <strong>{visibleApplications.length}</strong> of <strong>{applications.length}</strong> applications</span><span className="privacy-note"><span className="privacy-dot" /> Saved in this browser</span></div>
+          ) : <EmptyState hasApplications={applications.length > 0} onAdd={() => setIsFormOpen(true)} disabled={!storageReady || Boolean(storageError)} />}
+          <div className="panel-footer"><span>Showing <strong>{visibleApplications.length}</strong> of <strong>{applications.length}</strong> applications</span><span className="privacy-note"><span className="privacy-dot" /> Saved on this device</span></div>
         </section>
         <footer className="page-footer">Made for the long game <span>✳</span></footer>
       </main>
@@ -142,7 +143,7 @@ function App() {
   )
 }
 
-function StatCard({ label, value, icon, tone, caption }: { label: string; value: number; icon: React.ReactNode; tone: string; caption: string }) {
+function StatCard({ label, value, icon, tone, caption }: { label: string; value: number; icon: ReactNode; tone: string; caption: string }) {
   return <article className="stat-card"><div className={`stat-icon ${tone}`}>{icon}</div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-caption">{caption}</div></article>
 }
 
@@ -150,8 +151,8 @@ function StatusSelect({ status, onChange }: { status: Status; onChange: (status:
   return <label className={`status-pill status-${status.toLowerCase()}`}><span className="status-dot" /><select aria-label="Application status" value={status} onChange={(event) => onChange(event.target.value as Status)}>{statuses.map((option) => <option key={option}>{option}</option>)}</select><ChevronDown size={13} /></label>
 }
 
-function EmptyState({ hasApplications, onAdd }: { hasApplications: boolean; onAdd: () => void }) {
-  return <div className="empty-state"><div className="empty-illustration"><BriefcaseBusiness size={25} /></div><h3>{hasApplications ? 'No matches found' : 'Your next opportunity starts here'}</h3><p>{hasApplications ? 'Try another search or choose a different status.' : 'Add the first role you are considering. We will help you keep track of what happens next.'}</p>{!hasApplications && <button className="secondary-button" onClick={onAdd}><CirclePlus size={16} /> Add your first application <ArrowUpRight size={15} /></button>}</div>
+function EmptyState({ hasApplications, onAdd, disabled }: { hasApplications: boolean; onAdd: () => void; disabled: boolean }) {
+  return <div className="empty-state"><div className="empty-illustration"><BriefcaseBusiness size={25} /></div><h3>{hasApplications ? 'No matches found' : 'Your next opportunity starts here'}</h3><p>{hasApplications ? 'Try another search or choose a different status.' : 'Add the first role you are considering. We will help you keep track of what happens next.'}</p>{!hasApplications && <button className="secondary-button" onClick={onAdd} disabled={disabled}><CirclePlus size={16} /> Add your first application <ArrowUpRight size={15} /></button>}</div>
 }
 
 function ApplicationModal({ onClose, onSave }: { onClose: () => void; onSave: (application: Omit<Application, 'id'>) => void }) {
@@ -165,7 +166,7 @@ function ApplicationModal({ onClose, onSave }: { onClose: () => void; onSave: (a
   const [notes, setNotes] = useState('')
   const canSave = company.trim().length > 0 && role.trim().length > 0
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!canSave) return
     onSave({ company: company.trim(), role: role.trim(), location: location.trim(), dateApplied, status, url: url.trim(), nextStep: nextStep.trim(), notes: notes.trim() })
