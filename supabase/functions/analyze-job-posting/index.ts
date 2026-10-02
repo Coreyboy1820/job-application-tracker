@@ -214,7 +214,15 @@ async function extractSkills(text: string, company: string, role: string): Promi
       },
     }),
   })
-  if (!response.ok) throw new Error(`Gemini skill analysis failed (HTTP ${response.status}). Check the Gemini API key, free-tier limits, and model access.`)
+  if (!response.ok) {
+    let details = ''
+    try {
+      const failure = await response.json() as { error?: { message?: string } }
+      details = failure.error?.message?.trim() ?? ''
+    } catch { /* Preserve the HTTP status if Gemini returned a non-JSON error. */ }
+    const suffix = details ? `: ${details.slice(0, 600)}` : ''
+    throw new Error(`Gemini skill analysis failed (HTTP ${response.status})${suffix}`)
+  }
   const result = await response.json()
   const outputText = result.candidates?.[0]?.content?.parts
     ?.find((part: { text?: string }) => typeof part.text === 'string')?.text
