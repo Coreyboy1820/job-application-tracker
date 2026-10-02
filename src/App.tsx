@@ -659,6 +659,11 @@ function InterviewModal({ application, onClose, onSave }: {
   }
 
   async function saveSchedule() {
+    if (editingId || date || time || notes.trim()) {
+      setError('Add or update the interview draft before saving the schedule.')
+      return
+    }
+
     setSaving(true)
     setError(null)
     const saveError = await onSave(application.id, interviews)
