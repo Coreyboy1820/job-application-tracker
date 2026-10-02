@@ -5,6 +5,7 @@ export type JobSkill = {
   category: 'technical' | 'tools' | 'domain' | 'process' | 'other'
   importance: 'required' | 'preferred' | 'mentioned'
   evidence: string
+  interviewQuestions?: string[]
 }
 
 export type Application = {
@@ -22,4 +23,3 @@ export type Application = {
   skillsAnalyzedAt?: string | null
   skillsSourceUrl?: string
 }
-
