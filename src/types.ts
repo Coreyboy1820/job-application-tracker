@@ -10,4 +10,7 @@ export type Application = {
   url: string
   notes: string
   nextStep: string
+  jobDescription?: string
+  skills?: string[]
 }
+
