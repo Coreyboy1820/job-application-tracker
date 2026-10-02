@@ -11,6 +11,7 @@ import {
   Clock3,
   LogOut,
   MoreHorizontal,
+  Pencil,
   Search,
   X,
 } from 'lucide-react'
@@ -105,6 +106,7 @@ function App() {
   const [search, setSearch] = useState('')
   const [sortNewest, setSortNewest] = useState(true)
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingApplication, setEditingApplication] = useState<Application | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [legacyApplications, setLegacyApplications] = useState<Application[]>([])
@@ -226,6 +228,34 @@ function App() {
     setApplications((current) => current.map((item) => item.id === id ? updated : item))
   }
 
+  async function updateApplication(id: string, application: Omit<Application, 'id'>): Promise<boolean> {
+    if (!client) return false
+    setError(null)
+    const { data, error: updateError } = await client
+      .from('applications')
+      .update({
+        company: application.company,
+        role: application.role,
+        location: application.location,
+        date_applied: application.dateApplied || new Date().toISOString().slice(0, 10),
+        status: application.status,
+        url: application.url,
+        notes: application.notes,
+        next_step: application.nextStep,
+      })
+      .eq('id', id)
+      .select(applicationColumns)
+      .single()
+
+    if (updateError) {
+      setError(`Could not update this application: ${updateError.message}`)
+      return false
+    }
+    const updated = fromRow(data as ApplicationRow)
+    setApplications((current) => current.map((item) => item.id === id ? updated : item))
+    return true
+  }
+
   async function deleteApplication(id: string) {
     if (!client) return
     setError(null)
@@ -325,7 +355,10 @@ function App() {
                 <td className="date-cell">{formatDate(application.dateApplied)}</td>
                 <td><StatusSelect status={application.status} onChange={(status) => void updateStatus(application.id, status)} /></td>
                 <td className="next-step-cell">{application.nextStep || <span className="muted-text">Add a reminder</span>}</td>
-                <td><button className="row-menu" aria-label={`Delete ${application.role} at ${application.company}`} title="Delete application" onClick={() => void deleteApplication(application.id)}><X size={16} /></button></td>
+                <td className="application-actions">
+                  <button className="row-menu edit-application-button" aria-label={`Edit ${application.role} at ${application.company}`} title="Edit application" onClick={() => { setEditingApplication(application); setIsFormOpen(true) }}><Pencil size={15} /></button>
+                  <button className="row-menu" aria-label={`Delete ${application.role} at ${application.company}`} title="Delete application" onClick={() => void deleteApplication(application.id)}><X size={16} /></button>
+                </td>
               </tr>)}
             </tbody></table></div>
           ) : <EmptyState hasApplications={applications.length > 0} onAdd={() => setIsFormOpen(true)} />}
@@ -334,7 +367,7 @@ function App() {
         <footer className="page-footer">Made for the long game <span>✳</span></footer>
       </main>
 
-      {isFormOpen && <ApplicationModal onClose={() => setIsFormOpen(false)} onSave={addApplication} />}
+      {isFormOpen && <ApplicationModal key={editingApplication?.id ?? 'new'} application={editingApplication} onClose={() => { setIsFormOpen(false); setEditingApplication(null) }} onSave={(application) => editingApplication ? updateApplication(editingApplication.id, application) : addApplication(application)} />}
     </div>
   )
 }
@@ -385,15 +418,15 @@ function EmptyState({ hasApplications, onAdd }: { hasApplications: boolean; onAd
   return <div className="empty-state"><div className="empty-illustration"><BriefcaseBusiness size={25} /></div><h3>{hasApplications ? 'No matches found' : 'Your next opportunity starts here'}</h3><p>{hasApplications ? 'Try another search or choose a different status.' : 'Add the first role you are considering. We will help you keep track of what happens next.'}</p>{!hasApplications && <button className="secondary-button" onClick={onAdd}><CirclePlus size={16} /> Add your first application <ArrowUpRight size={15} /></button>}</div>
 }
 
-function ApplicationModal({ onClose, onSave }: { onClose: () => void; onSave: (application: Omit<Application, 'id'>) => Promise<boolean> }) {
-  const [company, setCompany] = useState('')
-  const [role, setRole] = useState('')
-  const [location, setLocation] = useState('')
-  const [dateApplied, setDateApplied] = useState(new Date().toISOString().slice(0, 10))
-  const [status, setStatus] = useState<Status>('Applied')
-  const [url, setUrl] = useState('')
-  const [nextStep, setNextStep] = useState('')
-  const [notes, setNotes] = useState('')
+function ApplicationModal({ application, onClose, onSave }: { application: Application | null; onClose: () => void; onSave: (application: Omit<Application, 'id'>) => Promise<boolean> }) {
+  const [company, setCompany] = useState(application?.company ?? '')
+  const [role, setRole] = useState(application?.role ?? '')
+  const [location, setLocation] = useState(application?.location ?? '')
+  const [dateApplied, setDateApplied] = useState(application?.dateApplied ?? new Date().toISOString().slice(0, 10))
+  const [status, setStatus] = useState<Status>(application?.status ?? 'Applied')
+  const [url, setUrl] = useState(application?.url ?? '')
+  const [nextStep, setNextStep] = useState(application?.nextStep ?? '')
+  const [notes, setNotes] = useState(application?.notes ?? '')
   const [saving, setSaving] = useState(false)
   const canSave = company.trim().length > 0 && role.trim().length > 0
 
@@ -406,9 +439,9 @@ function ApplicationModal({ onClose, onSave }: { onClose: () => void; onSave: (a
     if (saved) onClose()
   }
 
-  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><header className="modal-header"><div><div className="eyebrow">NEW OPPORTUNITY</div><h2 id="modal-title">Add an application</h2></div><button className="icon-button" aria-label="Close" onClick={onClose}><X size={18} /></button></header><form onSubmit={(event) => void handleSubmit(event)}>
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><header className="modal-header"><div><div className="eyebrow">{application ? 'UPDATE OPPORTUNITY' : 'NEW OPPORTUNITY'}</div><h2 id="modal-title">{application ? 'Edit application' : 'Add an application'}</h2></div><button className="icon-button" aria-label="Close" onClick={onClose}><X size={18} /></button></header><form onSubmit={(event) => void handleSubmit(event)}>
     <div className="form-grid"><label className="field"><span>Company <i>*</i></span><input autoFocus required value={company} onChange={(event) => setCompany(event.target.value)} placeholder="e.g. Acme Inc." /></label><label className="field"><span>Job title <i>*</i></span><input required value={role} onChange={(event) => setRole(event.target.value)} placeholder="e.g. Software Engineer" /></label><label className="field"><span>Location</span><input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Remote, city, or hybrid" /></label><label className="field"><span>Date applied</span><input type="date" value={dateApplied} onChange={(event) => setDateApplied(event.target.value)} /></label><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value as Status)}>{statuses.map((option) => <option key={option}>{option}</option>)}</select></label><label className="field"><span>Job posting link</span><input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://" /></label><label className="field field-full"><span>Next step or reminder</span><input value={nextStep} onChange={(event) => setNextStep(event.target.value)} placeholder="e.g. Follow up with recruiter Friday" /></label><label className="field field-full"><span>Notes</span><textarea rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Anything you want to remember about this role..." /></label></div>
-    <div className="modal-actions"><button type="button" className="text-button" onClick={onClose}>Cancel</button><button className="primary-button" type="submit" disabled={!canSave || saving}><CirclePlus size={16} /> {saving ? 'Saving…' : 'Save application'}</button></div>
+    <div className="modal-actions"><button type="button" className="text-button" onClick={onClose}>Cancel</button><button className="primary-button" type="submit" disabled={!canSave || saving}>{application ? <Check size={16} /> : <CirclePlus size={16} />} {saving ? 'Saving…' : application ? 'Save changes' : 'Save application'}</button></div>
   </form></section></div>
 }
 
