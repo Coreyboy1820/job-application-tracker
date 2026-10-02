@@ -380,7 +380,7 @@ function App() {
         </a>
         <div className="workspace-label">WORKSPACE</div>
         <button type="button" className={`nav-item ${activePage === 'applications' ? 'nav-item-active' : ''}`} aria-current={activePage === 'applications' ? 'page' : undefined} onClick={() => navigateTo('applications')}><span className="nav-icon"><BriefcaseBusiness size={17} /></span> Applications <span className="nav-count">{applications.length}</span></button>
-        <button type="button" className={`nav-item ${activePage === 'skills' ? 'nav-item-active' : ''}`} aria-current={activePage === 'skills' ? 'page' : undefined} onClick={() => navigateTo('skills')}><span className="nav-icon"><Sparkles size={17} /></span> Skills <span className="nav-count">{applications.reduce((count, item) => count + (item.skills?.length ?? 0), 0)}</span></button>
+        <button type="button" className={`nav-item ${activePage === 'skills' ? 'nav-item-active' : ''}`} aria-current={activePage === 'skills' ? 'page' : undefined} onClick={() => navigateTo('skills')}><span className="nav-icon"><Sparkles size={17} /></span> Skills <span className="nav-count">{applications.reduce((count, item) => count + (item.skillsAnalyzedAt && item.skillsSourceUrl === item.url ? item.skills?.length ?? 0 : 0), 0)}</span></button>
         <div className="sidebar-note">
           <div className="note-icon"><CalendarDays size={16} /></div>
           <strong>One step at a time.</strong>
