@@ -35,7 +35,23 @@ Vite prints a local URL (usually `http://localhost:5173`). Open it in your brows
 - Create an account or sign in with email and password.
 - Add an application with its company, role, status, date, posting link, notes, and next step.
 - Search, filter, sort, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
+- Click a company or role to analyze its saved job posting link. Rolecall reads the page, asks an AI model to identify stated skills, and saves the description, evidence, and skill list to that application. Results are cached for the link and reused when you open the application again.
 - If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
+
+### Configure job-posting analysis
+
+The analyzer runs as a Supabase Edge Function so the OpenAI API key stays on the server. Add `OPENAI_API_KEY` in the Supabase dashboard under **Edge Function Secrets**, deploy the `analyze-job-posting` function, and apply the latest migration:
+
+```sh
+npx supabase db push
+npx supabase functions deploy analyze-job-posting
+```
+
+You can also store it in an ignored `.env` file and run `npx supabase secrets set --env-file .env`. Keep that file private and out of Git.
+
+For local Edge Function development, put `OPENAI_API_KEY=your-key` in `supabase/functions/.env` (this file is ignored by Git) and run `npx supabase functions serve analyze-job-posting --env-file supabase/functions/.env`.
+
+The function only accepts public HTTPS posting links, limits downloaded pages to 2 MB, checks each redirect, and checks that DNS resolves to public addresses. Some job boards require a signed-in browser session, generate the page with JavaScript, or block automated requests; those pages show an error and can be retried after updating the link. Job description text is sent to OpenAI for extraction, and the stored response includes short quotes as evidence for each skill. Set the optional `OPENAI_MODEL` function secret to override the default model.
 
 ## How the pieces fit together
 
@@ -44,7 +60,9 @@ Vite prints a local URL (usually `http://localhost:5173`). Open it in your brows
 - `src/lib/supabase.ts` creates the browser client from local environment variables.
 - `src/storage.ts` reads existing on-device records so they can be imported into the shared database.
 - `supabase/migrations/` contains the versioned database schema and access rules.
+- `supabase/functions/analyze-job-posting/` fetches public job posting pages, extracts skills with structured AI output, and saves results for the signed-in owner.
 - `src/styles.css` contains responsive page and component styles.
 - `index.html` is the page Vite serves; React mounts into its `#root` element.
 
 Supabase Auth identifies the user. Every application row has a `user_id`; the database enforces ownership even if a browser client is modified. The publishable key is safe to include in the frontend only because the table grants and RLS policies are restrictive. User data is no longer written to local storage, aside from the one-time import marker and the legacy records kept for import.
+
