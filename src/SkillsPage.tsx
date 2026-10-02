@@ -1,0 +1,98 @@
+import { useMemo, useState } from 'react'
+import { ArrowUpRight, BriefcaseBusiness, Search, Sparkles } from 'lucide-react'
+import type { Application, JobSkill } from './types'
+
+type ImportanceFilter = 'All' | JobSkill['importance']
+
+export default function SkillsPage({ applications, loading, onOpenApplication }: {
+  applications: Application[]
+  loading: boolean
+  onOpenApplication: (id: string) => void
+}) {
+  const [search, setSearch] = useState('')
+  const [importance, setImportance] = useState<ImportanceFilter>('All')
+  const analyzedApplications = applications.filter((application) =>
+    application.skillsAnalyzedAt && application.skillsSourceUrl === application.url,
+  )
+  const allSkills = analyzedApplications.flatMap((application) => application.skills ?? [])
+  const uniqueSkillCount = new Set(allSkills.map((skill) => skill.name.trim().toLowerCase())).size
+
+  const filteredApplications = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return applications.filter((application) => {
+      const skills = application.skills ?? []
+      const hasMatchingImportance = importance === 'All'
+        || skills.some((skill) => skill.importance === importance)
+        || !application.skillsAnalyzedAt
+      const searchableText = [
+        application.company,
+        application.role,
+        application.location,
+        application.jobDescription,
+        ...skills.flatMap((skill) => [skill.name, skill.category, skill.importance, skill.evidence]),
+      ].join(' ').toLowerCase()
+      return hasMatchingImportance && (!query || searchableText.includes(query))
+    })
+  }, [applications, importance, search])
+
+  return <>
+    <section className="page-heading skills-page-heading">
+      <div><div className="eyebrow">JOB SEARCH LIBRARY</div><h1>Skills</h1><p className="page-subtitle">Skills and supporting evidence gathered from your job postings.</p></div>
+      <div className="skills-page-total"><Sparkles size={17} /><span>{uniqueSkillCount} unique skill{uniqueSkillCount === 1 ? '' : 's'}</span></div>
+    </section>
+
+    <section className="stats-grid skills-stats-grid" aria-label="Skills summary">
+      <SkillStat label="Jobs analyzed" value={analyzedApplications.length} caption={`of ${applications.length} applications`} />
+      <SkillStat label="Skill mentions" value={allSkills.length} caption="Across analyzed postings" />
+      <SkillStat label="Required skills" value={allSkills.filter((skill) => skill.importance === 'required').length} caption="Marked as required" />
+      <SkillStat label="Preferred skills" value={allSkills.filter((skill) => skill.importance === 'preferred').length} caption="Marked as preferred" />
+    </section>
+
+    <section className="list-panel skills-library">
+      <div className="panel-heading"><div><h2>Skills by application</h2><p>Each skill includes the job-posting quote that supports it.</p></div><span className="cloud-badge">Synced to your account</span></div>
+      <div className="skills-toolbar">
+        <label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search skills and roles…" /></label>
+        <div className="skills-filter" role="group" aria-label="Filter by importance">
+          {(['All', 'required', 'preferred', 'mentioned'] as const).map((item) => <button key={item} type="button" className={importance === item ? 'skills-filter-active' : ''} aria-pressed={importance === item} onClick={() => setImportance(item)}>{item === 'All' ? item : `${item[0].toUpperCase()}${item.slice(1)}`}</button>)}
+        </div>
+      </div>
+
+      {loading ? <div className="empty-state"><p>Loading your skills…</p></div> : filteredApplications.length ? <div className="skills-application-list">
+        {filteredApplications.map((application) => {
+          const isAnalyzed = Boolean(application.skillsAnalyzedAt && application.skillsSourceUrl === application.url)
+          const skills = (application.skills ?? []).filter((skill) => importance === 'All' || skill.importance === importance)
+          return <article className="skills-application" key={application.id}>
+            <header className="skills-application-header">
+              <div className="skills-company-mark"><BriefcaseBusiness size={16} /></div>
+              <div className="skills-application-title"><h3>{application.company}</h3><p>{application.role}{application.location ? ` · ${application.location}` : ''}</p><span className="skills-application-meta">{application.status} · Applied {formatDate(application.dateApplied)}{isAnalyzed && application.skillsAnalyzedAt ? ` · Analyzed ${formatDate(application.skillsAnalyzedAt.slice(0, 10))}` : ''}</span></div>
+              <div className="skills-application-actions">
+                {application.url && <a className="skills-original-link" href={application.url} target="_blank" rel="noreferrer">Posting <ArrowUpRight size={13} /></a>}
+                <button type="button" className="secondary-button" onClick={() => onOpenApplication(application.id)}>{isAnalyzed ? 'Open application' : 'Analyze posting'}</button>
+              </div>
+            </header>
+            {isAnalyzed ? <>
+              {skills.length ? <div className="skills-library-grid">{skills.map((skill) => <article className="analyzed-skill" key={`${skill.name}-${skill.evidence}`}>
+                <div className="analyzed-skill-heading"><strong>{skill.name}</strong><span className={`importance importance-${skill.importance}`}>{skill.importance}</span></div>
+                <div className="analyzed-skill-meta">{skill.category}</div>
+                <blockquote>“{skill.evidence}”</blockquote>
+              </article>)}</div> : <div className="no-skills-found">{application.skills?.length ? `No ${importance.toLowerCase()} skills in this posting.` : 'No specific skills were found in the saved job posting.'}</div>}
+              {application.jobDescription && <details className="saved-job-description"><summary>View fetched job description</summary><pre>{application.jobDescription}</pre></details>}
+            </> : <div className="skills-not-analyzed">{application.url ? 'Open the application to fetch the posting and analyze its skills.' : 'Add a job posting link to analyze this application.'}</div>}
+          </article>
+        })}
+      </div> : <div className="empty-state"><div className="empty-illustration"><Sparkles size={20} /></div><h3>{applications.length ? 'No matching skills' : 'No applications yet'}</h3><p>{applications.length ? 'Try a different search or importance filter.' : 'Add an application with a job posting link to start collecting skills.'}</p></div>}
+      <div className="panel-footer"><span>Showing <strong>{filteredApplications.length}</strong> of <strong>{applications.length}</strong> applications</span><span className="privacy-note"><span className="privacy-dot" /> Stored securely in your account</span></div>
+    </section>
+    <footer className="page-footer">Made for the long game <span>✳</span></footer>
+  </>
+}
+
+function SkillStat({ label, value, caption }: { label: string; value: number; caption: string }) {
+  return <article className="stat-card skills-stat-card"><div className="stat-icon violet"><Sparkles size={16} /></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-caption">{caption}</div></article>
+}
+
+function formatDate(value: string) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
+}
+

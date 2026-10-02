@@ -19,6 +19,7 @@ import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { loadApplications as loadLocalApplications } from './storage'
 import type { Application, JobSkill, Status } from './types'
+import SkillsPage from './SkillsPage'
 import './cloud.css'
 
 type ApplicationRow = {
@@ -110,6 +111,7 @@ async function readLegacyApplications(): Promise<Application[]> {
 
 function App() {
   const client = supabase
+  const [activePage, setActivePage] = useState<'applications' | 'skills'>(() => window.location.hash === '#/skills' ? 'skills' : 'applications')
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [applications, setApplications] = useState<Application[]>([])
@@ -125,6 +127,20 @@ function App() {
   const [notice, setNotice] = useState<string | null>(null)
   const [legacyApplications, setLegacyApplications] = useState<Application[]>([])
   const [importing, setImporting] = useState(false)
+
+  useEffect(() => {
+    function syncPageFromHash() {
+      setActivePage(window.location.hash === '#/skills' ? 'skills' : 'applications')
+    }
+    window.addEventListener('hashchange', syncPageFromHash)
+    return () => window.removeEventListener('hashchange', syncPageFromHash)
+  }, [])
+
+  function navigateTo(page: 'applications' | 'skills') {
+    const nextHash = page === 'skills' ? '#/skills' : '#/applications'
+    if (window.location.hash !== nextHash) window.location.hash = nextHash
+    setActivePage(page)
+  }
 
   useEffect(() => {
     if (!client) {
@@ -358,12 +374,13 @@ function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <a className="brand" href="#top" aria-label="Rolecall home">
+        <a className="brand" href="#/applications" onClick={() => navigateTo('applications')} aria-label="Rolecall home">
           <span className="brand-mark"><BriefcaseBusiness size={18} strokeWidth={2.4} /></span>
           <span>rolecall<span className="brand-period">.</span></span>
         </a>
         <div className="workspace-label">WORKSPACE</div>
-        <button className="nav-item nav-item-active"><span className="nav-icon"><BriefcaseBusiness size={17} /></span> Applications <span className="nav-count">{applications.length}</span></button>
+        <button type="button" className={`nav-item ${activePage === 'applications' ? 'nav-item-active' : ''}`} aria-current={activePage === 'applications' ? 'page' : undefined} onClick={() => navigateTo('applications')}><span className="nav-icon"><BriefcaseBusiness size={17} /></span> Applications <span className="nav-count">{applications.length}</span></button>
+        <button type="button" className={`nav-item ${activePage === 'skills' ? 'nav-item-active' : ''}`} aria-current={activePage === 'skills' ? 'page' : undefined} onClick={() => navigateTo('skills')}><span className="nav-icon"><Sparkles size={17} /></span> Skills <span className="nav-count">{applications.reduce((count, item) => count + (item.skillsAnalyzedAt && item.skillsSourceUrl === item.url ? item.skills?.length ?? 0 : 0), 0)}</span></button>
         <div className="sidebar-note">
           <div className="note-icon"><CalendarDays size={16} /></div>
           <strong>One step at a time.</strong>
@@ -373,14 +390,15 @@ function App() {
       </aside>
 
       <main className="main-content" id="top">
-        <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> Applications</span><button className="sign-out-button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button></header>
+        <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> {activePage === 'skills' ? 'Skills' : 'Applications'}</span><button className="sign-out-button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button></header>
+        {error && <div className="storage-message storage-error" role="alert">{error}</div>}
+        {notice && <div className="storage-message storage-notice" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={() => setNotice(null)}><X size={15} /></button></div>}
+        {activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={setSelectedApplicationId} /> : <>
         <section className="page-heading">
           <div><div className="eyebrow">JOB SEARCH DASHBOARD</div><h1>Applications</h1><p className="page-subtitle">A little progress every day adds up.</p></div>
           <button className="primary-button" onClick={() => setIsFormOpen(true)}><CirclePlus size={17} /> Add application</button>
         </section>
 
-        {error && <div className="storage-message storage-error" role="alert">{error}</div>}
-        {notice && <div className="storage-message storage-notice" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={() => setNotice(null)}><X size={15} /></button></div>}
         {legacyApplications.length > 0 && <div className="migration-banner"><div><strong>Bring over your browser-saved applications</strong><p>We found {legacyApplications.length} application{legacyApplications.length === 1 ? '' : 's'} saved on this device. Copy them into your account to use them on other devices. The browser copy will be kept.</p></div><button className="secondary-button" disabled={importing} onClick={() => void importLegacyApplications()}>{importing ? 'Importing…' : 'Import applications'} <ArrowUpRight size={15} /></button></div>}
 
         <section className="stats-grid" aria-label="Application summary">
@@ -412,6 +430,7 @@ function App() {
           <div className="panel-footer"><span>Showing <strong>{visibleApplications.length}</strong> of <strong>{applications.length}</strong> applications</span><span className="privacy-note"><span className="privacy-dot" /> Stored securely in your account</span></div>
         </section>
         <footer className="page-footer">Made for the long game <span>✳</span></footer>
+        </>}
       </main>
 
       {isFormOpen && <ApplicationModal onClose={() => setIsFormOpen(false)} onSave={addApplication} />}
