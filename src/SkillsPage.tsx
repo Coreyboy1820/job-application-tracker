@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowUpRight, BriefcaseBusiness, Search, Sparkles } from 'lucide-react'
+import { ArrowUpRight, BriefcaseBusiness, ChevronDown, Search, Sparkles } from 'lucide-react'
 import type { Application, JobSkill } from './types'
 
 type ImportanceFilter = 'All' | JobSkill['importance']
@@ -11,6 +11,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication }:
 }) {
   const [search, setSearch] = useState('')
   const [importance, setImportance] = useState<ImportanceFilter>('All')
+  const [collapsedApplications, setCollapsedApplications] = useState<Set<string>>(() => new Set())
   const analyzedApplications = applications.filter((application) =>
     application.skillsAnalyzedAt && application.skillsSourceUrl === application.url,
   )
@@ -34,6 +35,15 @@ export default function SkillsPage({ applications, loading, onOpenApplication }:
       return hasMatchingImportance && (!query || searchableText.includes(query))
     })
   }, [applications, importance, search])
+
+  function toggleApplication(applicationId: string) {
+    setCollapsedApplications((current) => {
+      const next = new Set(current)
+      if (next.has(applicationId)) next.delete(applicationId)
+      else next.add(applicationId)
+      return next
+    })
+  }
 
   return <>
     <section className="page-heading skills-page-heading">
@@ -60,6 +70,8 @@ export default function SkillsPage({ applications, loading, onOpenApplication }:
       {loading ? <div className="empty-state"><p>Loading your skills…</p></div> : filteredApplications.length ? <div className="skills-application-list">
         {filteredApplications.map((application) => {
           const isAnalyzed = Boolean(application.skillsAnalyzedAt && application.skillsSourceUrl === application.url)
+          const isCollapsed = collapsedApplications.has(application.id)
+          const applicationContentId = `skills-application-content-${application.id}`
           const skills = (application.skills ?? []).filter((skill) => importance === 'All' || skill.importance === importance)
           return <article className="skills-application" key={application.id}>
             <header className="skills-application-header">
@@ -68,16 +80,28 @@ export default function SkillsPage({ applications, loading, onOpenApplication }:
               <div className="skills-application-actions">
                 {application.url && <a className="skills-original-link" href={application.url} target="_blank" rel="noreferrer">Posting <ArrowUpRight size={13} /></a>}
                 <button type="button" className="secondary-button" onClick={() => onOpenApplication(application.id)}>{isAnalyzed ? 'Open application' : 'Analyze posting'}</button>
+                <button
+                  type="button"
+                  className="skills-collapse-button"
+                  aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${application.company} skills`}
+                  aria-expanded={!isCollapsed}
+                  aria-controls={applicationContentId}
+                  onClick={() => toggleApplication(application.id)}
+                >
+                  <ChevronDown size={15} />
+                </button>
               </div>
             </header>
-            {isAnalyzed ? <>
-              {skills.length ? <div className="skills-library-grid">{skills.map((skill) => <article className="analyzed-skill" key={`${skill.name}-${skill.evidence}`}>
-                <div className="analyzed-skill-heading"><strong>{skill.name}</strong><span className={`importance importance-${skill.importance}`}>{skill.importance}</span></div>
-                <div className="analyzed-skill-meta">{skill.category}</div>
-                <blockquote>“{skill.evidence}”</blockquote>
-              </article>)}</div> : <div className="no-skills-found">{application.skills?.length ? `No ${importance.toLowerCase()} skills in this posting.` : 'No specific skills were found in the saved job posting.'}</div>}
-              {application.jobDescription && <details className="saved-job-description"><summary>View fetched job description</summary><pre>{application.jobDescription}</pre></details>}
-            </> : <div className="skills-not-analyzed">{application.url ? 'Open the application to fetch the posting and analyze its skills.' : 'Add a job posting link to analyze this application.'}</div>}
+            <div id={applicationContentId} hidden={isCollapsed}>
+              {isAnalyzed ? <>
+                {skills.length ? <div className="skills-library-grid">{skills.map((skill) => <article className="analyzed-skill" key={`${skill.name}-${skill.evidence}`}>
+                  <div className="analyzed-skill-heading"><strong>{skill.name}</strong><span className={`importance importance-${skill.importance}`}>{skill.importance}</span></div>
+                  <div className="analyzed-skill-meta">{skill.category}</div>
+                  <blockquote>“{skill.evidence}”</blockquote>
+                </article>)}</div> : <div className="no-skills-found">{application.skills?.length ? `No ${importance.toLowerCase()} skills in this posting.` : 'No specific skills were found in the saved job posting.'}</div>}
+                {application.jobDescription && <details className="saved-job-description"><summary>View fetched job description</summary><pre>{application.jobDescription}</pre></details>}
+              </> : <div className="skills-not-analyzed">{application.url ? 'Open the application to fetch the posting and analyze its skills.' : 'Add a job posting link to analyze this application.'}</div>}
+            </div>
           </article>
         })}
       </div> : <div className="empty-state"><div className="empty-illustration"><Sparkles size={20} /></div><h3>{applications.length ? 'No matching skills' : 'No applications yet'}</h3><p>{applications.length ? 'Try a different search or importance filter.' : 'Add an application with a job posting link to start collecting skills.'}</p></div>}
@@ -95,4 +119,3 @@ function formatDate(value: string) {
   if (!value) return '—'
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
 }
-
