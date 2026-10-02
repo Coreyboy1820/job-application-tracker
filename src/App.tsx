@@ -21,6 +21,7 @@ import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { loadApplications as loadLocalApplications } from './storage'
 import type { Application, JobSkill, Status } from './types'
 import SkillsPage from './SkillsPage'
+import CompanyInterviewQuestionsPage from './CompanyInterviewQuestionsPage'
 import './cloud.css'
 
 type ApplicationRow = {
@@ -115,7 +116,8 @@ async function readLegacyApplications(): Promise<Application[]> {
 
 function App() {
   const client = supabase
-  const [activePage, setActivePage] = useState<'applications' | 'skills'>(() => window.location.hash === '#/skills' ? 'skills' : 'applications')
+  const [activePage, setActivePage] = useState<'applications' | 'skills' | 'company-questions'>(() => readRouteFromHash().page)
+  const [activeCompany, setActiveCompany] = useState<string | null>(() => readRouteFromHash().company)
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [applications, setApplications] = useState<Application[]>([])
@@ -135,16 +137,25 @@ function App() {
 
   useEffect(() => {
     function syncPageFromHash() {
-      setActivePage(window.location.hash === '#/skills' ? 'skills' : 'applications')
+      const route = readRouteFromHash()
+      setActivePage(route.page)
+      setActiveCompany(route.company)
     }
     window.addEventListener('hashchange', syncPageFromHash)
     return () => window.removeEventListener('hashchange', syncPageFromHash)
   }, [])
 
-  function navigateTo(page: 'applications' | 'skills') {
-    const nextHash = page === 'skills' ? '#/skills' : '#/applications'
+  function navigateTo(page: 'applications' | 'skills' | 'company-questions', company?: string) {
+    const nextHash = page === 'company-questions' && company
+      ? `#/skills/company/${encodeURIComponent(company)}`
+      : page === 'skills' || page === 'company-questions' ? '#/skills' : '#/applications'
     if (window.location.hash !== nextHash) window.location.hash = nextHash
     setActivePage(page)
+    setActiveCompany(page === 'company-questions' && company ? company : null)
+  }
+
+  function openCompanyQuestions(company: string) {
+    navigateTo('company-questions', company)
   }
 
   function openApplication(id: string) {
@@ -429,7 +440,7 @@ function App() {
         </a>
         <div className="workspace-label">WORKSPACE</div>
         <button type="button" className={`nav-item ${activePage === 'applications' ? 'nav-item-active' : ''}`} aria-current={activePage === 'applications' ? 'page' : undefined} onClick={() => navigateTo('applications')}><span className="nav-icon"><BriefcaseBusiness size={17} /></span> Applications <span className="nav-count">{applications.length}</span></button>
-        <button type="button" className={`nav-item ${activePage === 'skills' ? 'nav-item-active' : ''}`} aria-current={activePage === 'skills' ? 'page' : undefined} onClick={() => navigateTo('skills')}><span className="nav-icon"><Sparkles size={17} /></span> Skills <span className="nav-count">{applications.reduce((count, item) => count + (item.skillsAnalyzedAt && item.skillsSourceUrl === item.url ? item.skills?.length ?? 0 : 0), 0)}</span></button>
+        <button type="button" className={`nav-item ${activePage !== 'applications' ? 'nav-item-active' : ''}`} aria-current={activePage !== 'applications' ? 'page' : undefined} onClick={() => navigateTo('skills')}><span className="nav-icon"><Sparkles size={17} /></span> Skills <span className="nav-count">{applications.reduce((count, item) => count + (item.skillsAnalyzedAt && item.skillsSourceUrl === item.url ? item.skills?.length ?? 0 : 0), 0)}</span></button>
         <div className="sidebar-note">
           <div className="note-icon"><CalendarDays size={16} /></div>
           <strong>One step at a time.</strong>
@@ -439,10 +450,13 @@ function App() {
       </aside>
 
       <main className="main-content" id="top">
-        <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> {activePage === 'skills' ? 'Skills' : 'Applications'}</span><button className="sign-out-button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button></header>
+        <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> {activePage === 'applications' ? 'Applications' : activePage === 'company-questions' ? <>Skills <span>/</span> {activeCompany}</> : 'Skills'}</span><button className="sign-out-button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button></header>
         {error && <div className="storage-message storage-error" role="alert">{error}</div>}
         {notice && <div className="storage-message storage-notice" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={() => setNotice(null)}><X size={15} /></button></div>}
-        {activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} /> : <>
+        {activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} />
+          : activePage === 'company-questions' && activeCompany
+            ? <CompanyInterviewQuestionsPage company={activeCompany} applications={applications} onBack={() => navigateTo('skills')} />
+            : <>
         <section className="page-heading">
           <div><div className="eyebrow">JOB SEARCH DASHBOARD</div><h1>Applications</h1><p className="page-subtitle">A little progress every day adds up.</p></div>
           <button className="primary-button" onClick={() => setIsFormOpen(true)}><CirclePlus size={17} /> Add application</button>
@@ -616,6 +630,21 @@ function ApplicationDetailView({ application, analysis, onClose, onRetry, onUpda
 function formatDate(value: string) {
   if (!value) return '—'
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
+}
+
+function readRouteFromHash(): { page: 'applications' | 'skills' | 'company-questions'; company: string | null } {
+  const companyRoute = '#/skills/company/'
+  if (window.location.hash.startsWith(companyRoute)) {
+    try {
+      const company = decodeURIComponent(window.location.hash.slice(companyRoute.length)).trim()
+      if (company) return { page: 'company-questions', company }
+    } catch {
+      return { page: 'skills', company: null }
+    }
+  }
+  return window.location.hash === '#/skills'
+    ? { page: 'skills', company: null }
+    : { page: 'applications', company: null }
 }
 
 export default App
