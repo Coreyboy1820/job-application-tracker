@@ -17,6 +17,8 @@ A React + TypeScript web app for tracking job applications across devices. Supab
    The project ref is in the Supabase project URL. The migration creates the applications table, indexes, grants, and per-user Row Level Security policies.
 4. In the Supabase dashboard, set the Auth site's URL and redirect URL to the app's URL. For local development, use `http://localhost:5173`. Email confirmation is on by default for hosted projects; a new user may need to confirm their email before signing in.
 
+For GitHub Actions builds, add repository variables named `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` under **Settings → Secrets and variables → Actions → Variables**. The build workflow reads these values. They are publishable browser settings, not private credentials; never add a service-role or secret key to the app or workflow.
+
 ## Run it locally
 
 You need Node.js and npm installed. From this folder, run:
