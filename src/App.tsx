@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { loadApplications, saveApplications } from './storage'
+import { extractSkills } from './skills'
 import type { Application, Status } from './types'
 
 const statuses: Status[] = ['Interested', 'Applied', 'Interviewing', 'Offer', 'Rejected']
@@ -27,6 +28,7 @@ function App() {
   const [search, setSearch] = useState('')
   const [sortNewest, setSortNewest] = useState(true)
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null)
 
   useEffect(() => {
     let isCurrent = true
@@ -66,6 +68,7 @@ function App() {
   const activeCount = applications.filter((item) => ['Applied', 'Interviewing'].includes(item.status)).length
   const interviewCount = applications.filter((item) => item.status === 'Interviewing').length
   const offerCount = applications.filter((item) => item.status === 'Offer').length
+  const selectedApplication = applications.find((item) => item.id === selectedApplicationId) ?? null
 
   function addApplication(application: Omit<Application, 'id'>) {
     setApplications((current) => [{ ...application, id: crypto.randomUUID() }, ...current])
@@ -78,6 +81,11 @@ function App() {
 
   function deleteApplication(id: string) {
     setApplications((current) => current.filter((item) => item.id !== id))
+  }
+
+  function saveApplicationSkills(id: string, jobDescription: string, skills: string[]) {
+    setApplications((current) => current.map((item) => item.id === id ? { ...item, jobDescription, skills } : item))
+    setSelectedApplicationId(null)
   }
 
   return (
@@ -125,7 +133,7 @@ function App() {
           {visibleApplications.length > 0 ? (
             <div className="table-wrap"><table><thead><tr><th>COMPANY & ROLE</th><th>DATE APPLIED</th><th>STATUS</th><th>NEXT STEP</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
               {visibleApplications.map((application) => <tr key={application.id}>
-                <td><div className="company-cell"><div className="company-logo" aria-hidden="true">{application.company.slice(0, 1).toUpperCase()}</div><div className="company-info"><strong>{application.company}</strong><span>{application.role}{application.location ? ` · ${application.location}` : ''}</span></div></div></td>
+                <td><div className="company-cell"><div className="company-logo" aria-hidden="true">{application.company.slice(0, 1).toUpperCase()}</div><button type="button" className="company-info application-link" onClick={() => setSelectedApplicationId(application.id)}><strong>{application.company}</strong><span>{application.role}{application.location ? ` · ${application.location}` : ''}</span>{application.skills?.length ? <span className="skills-count">{application.skills.length} skills saved · View details</span> : <span className="skills-count">View details and skills</span>}</button></div></td>
                 <td className="date-cell">{formatDate(application.dateApplied)}</td>
                 <td><StatusSelect status={application.status} onChange={(status) => updateStatus(application.id, status)} /></td>
                 <td className="next-step-cell">{application.nextStep || <span className="muted-text">Add a reminder</span>}</td>
@@ -139,6 +147,13 @@ function App() {
       </main>
 
       {isFormOpen && <ApplicationModal onClose={() => setIsFormOpen(false)} onSave={addApplication} />}
+      {selectedApplication && <ApplicationDetailView
+        key={selectedApplication.id}
+        application={selectedApplication}
+        onClose={() => setSelectedApplicationId(null)}
+        onSave={(jobDescription, skills) => saveApplicationSkills(selectedApplication.id, jobDescription, skills)}
+        onStatusChange={(status) => updateStatus(selectedApplication.id, status)}
+      />}
     </div>
   )
 }
@@ -178,9 +193,54 @@ function ApplicationModal({ onClose, onSave }: { onClose: () => void; onSave: (a
   </form></section></div>
 }
 
+function ApplicationDetailView({ application, onClose, onSave, onStatusChange }: {
+  application: Application
+  onClose: () => void
+  onSave: (jobDescription: string, skills: string[]) => void
+  onStatusChange: (status: Status) => void
+}) {
+  const [jobDescription, setJobDescription] = useState(application.jobDescription ?? '')
+  const [skills, setSkills] = useState(application.skills ?? [])
+  const [newSkill, setNewSkill] = useState('')
+
+  function addSkill(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const skill = newSkill.trim()
+    if (skill && !skills.some((existing) => existing.toLowerCase() === skill.toLowerCase())) {
+      setSkills((current) => [...current, skill])
+    }
+    setNewSkill('')
+  }
+
+  return <div className="detail-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <aside className="detail-panel" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+      <header className="detail-header">
+        <div><div className="eyebrow">APPLICATION DETAILS</div><h2 id="detail-title">{application.company}</h2><p>{application.role}{application.location ? ` · ${application.location}` : ''}</p></div>
+        <button className="icon-button" aria-label="Close application details" onClick={onClose}><X size={18} /></button>
+      </header>
+      <div className="detail-body">
+        <div className="detail-meta"><div><span className="detail-label">STATUS</span><StatusSelect status={application.status} onChange={onStatusChange} /></div><div><span className="detail-label">DATE APPLIED</span><strong>{formatDate(application.dateApplied)}</strong></div></div>
+        {application.url && <a className="posting-link" href={application.url} target="_blank" rel="noreferrer">Open job posting <ArrowUpRight size={15} /></a>}
+        {application.nextStep && <section className="detail-section"><h3>Next step</h3><p>{application.nextStep}</p></section>}
+        {application.notes && <section className="detail-section"><h3>Notes</h3><p className="detail-notes">{application.notes}</p></section>}
+
+        <section className="detail-section skills-section">
+          <div className="section-title-row"><div><h3>Skills from the job description</h3><p>Review and keep the skills that matter for this role.</p></div><span className="skill-total">{skills.length}</span></div>
+          {skills.length ? <div className="skill-tags">{skills.map((skill) => <span className="skill-tag" key={skill}>{skill}<button type="button" aria-label={`Remove ${skill}`} onClick={() => setSkills((current) => current.filter((item) => item !== skill))}><X size={12} /></button></span>)}</div> : <div className="skills-empty">No skills saved yet. Add the job description below to find matching skills.</div>}
+          <form className="add-skill-form" onSubmit={addSkill}><input value={newSkill} onChange={(event) => setNewSkill(event.target.value)} placeholder="Add a skill manually" aria-label="Add a skill manually" /><button className="secondary-button" type="submit" disabled={!newSkill.trim()}><CirclePlus size={15} /> Add</button></form>
+        </section>
+
+        <section className="detail-section description-section"><label className="field"><span>Job description</span><textarea rows={8} value={jobDescription} onChange={(event) => setJobDescription(event.target.value)} placeholder="Paste the job description here to extract skills…" /></label><button className="extract-button" type="button" disabled={!jobDescription.trim()} onClick={() => setSkills(extractSkills(jobDescription))}><SlidersHorizontal size={15} /> Find skills in description</button></section>
+      </div>
+      <footer className="detail-footer"><button className="text-button" onClick={onClose}>Cancel</button><button className="primary-button" onClick={() => onSave(jobDescription, skills)}>Save details</button></footer>
+    </aside>
+  </div>
+}
+
 function formatDate(value: string) {
   if (!value) return '—'
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
 }
 
 export default App
+
