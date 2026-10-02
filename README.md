@@ -1,6 +1,23 @@
 # Rolecall — Job application tracker
 
-A small React + TypeScript web app for keeping job applications and their next steps in one place.
+A React + TypeScript web app for tracking job applications across devices. Supabase provides PostgreSQL storage and email/password sign-in; Postgres Row Level Security ensures each account can access only its own applications.
+
+## Set up a Supabase project
+
+1. Create a project in the [Supabase dashboard](https://supabase.com/dashboard).
+2. Copy `.env.example` to `.env.local` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the project's **Connect** dialog. The publishable key is intended for browser use. **Never put a service-role or secret key in a `VITE_` variable.**
+3. Install the Supabase CLI and sign in. Then link the project and apply the checked-in schema migration:
+
+   ```sh
+   npx supabase login
+   npx supabase link --project-ref YOUR_PROJECT_REF
+   npx supabase db push
+   ```
+
+   The project ref is in the Supabase project URL. The migration creates the applications table, indexes, grants, and per-user Row Level Security policies.
+4. In the Supabase dashboard, set the Auth site's URL and redirect URL to the app's URL. For local development, use `http://localhost:5173`. Email confirmation is on by default for hosted projects; a new user may need to confirm their email before signing in.
+
+For GitHub Actions builds, add repository variables named `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` under **Settings → Secrets and variables → Actions → Variables**. The build workflow reads these values. They are publishable browser settings, not private credentials; never add a service-role or secret key to the app or workflow.
 
 ## Run it locally
 
@@ -13,20 +30,21 @@ npm run dev
 
 Vite prints a local URL (usually `http://localhost:5173`). Open it in your browser. To make a production build, run `npm run build`.
 
-## What the first version does
+## Using the app
 
-- Add a role with its company, location, date, status, posting link, notes, and next step.
-- Filter by status or search company, role, and location.
-- Change a status from the table and delete an application.
-- Save the list in this device's browser database with IndexedDB.
+- Create an account or sign in with email and password.
+- Add an application with its company, role, status, date, posting link, notes, and next step.
+- Search, filter, sort, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
+- If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
 
 ## How the pieces fit together
 
 - `src/main.tsx` starts React and loads the stylesheet.
-- `src/App.tsx` defines the screen, form, and filters.
-- `src/storage.ts` opens the on-device IndexedDB database and reads and writes application records.
-- `src/types.ts` defines the application and status types shared by the UI and storage layer.
-- `src/styles.css` contains the responsive page and component styles.
-- `index.html` is the single page Vite serves; React mounts into its `#root` element.
+- `src/App.tsx` contains the sign-in screen, application list, forms, and database operations.
+- `src/lib/supabase.ts` creates the browser client from local environment variables.
+- `src/storage.ts` reads existing on-device records so they can be imported into the shared database.
+- `supabase/migrations/` contains the versioned database schema and access rules.
+- `src/styles.css` contains responsive page and component styles.
+- `index.html` is the page Vite serves; React mounts into its `#root` element.
 
-Data currently stays in the browser profile where it was entered. On first launch after this update, existing `localStorage` records are copied into IndexedDB and then the old copy is removed. This local database does not sync between devices. A hosted database and user accounts are a separate next step.
+Supabase Auth identifies the user. Every application row has a `user_id`; the database enforces ownership even if a browser client is modified. The publishable key is safe to include in the frontend only because the table grants and RLS policies are restrictive. User data is no longer written to local storage, aside from the one-time import marker and the legacy records kept for import.
