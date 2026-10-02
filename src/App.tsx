@@ -122,12 +122,9 @@ function App() {
   const [sortNewest, setSortNewest] = useState(true)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingApplication, setEditingApplication] = useState<Application | null>(null)
-<<<<<<< HEAD
-=======
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<{ id: string; state: 'loading' | 'error'; message?: string } | null>(null)
   const [analysisAttempt, setAnalysisAttempt] = useState(0)
->>>>>>> 4bc76b8734704f6b00ac150c68a3ebae912ee4ea
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [legacyApplications, setLegacyApplications] = useState<Application[]>([])
@@ -310,11 +307,8 @@ function App() {
   async function updateApplication(id: string, application: Omit<Application, 'id'>): Promise<boolean> {
     if (!client) return false
     setError(null)
-<<<<<<< HEAD
-=======
     const current = applications.find((item) => item.id === id)
     const postingChanged = current !== undefined && current.url !== application.url
->>>>>>> 4bc76b8734704f6b00ac150c68a3ebae912ee4ea
     const { data, error: updateError } = await client
       .from('applications')
       .update({
@@ -326,15 +320,12 @@ function App() {
         url: application.url,
         notes: application.notes,
         next_step: application.nextStep,
-<<<<<<< HEAD
-=======
         ...(postingChanged ? {
           job_description: '',
           skills: [],
           skills_analyzed_at: null,
           skills_source_url: '',
         } : {}),
->>>>>>> 4bc76b8734704f6b00ac150c68a3ebae912ee4ea
       })
       .eq('id', id)
       .select(applicationColumns)
@@ -446,7 +437,7 @@ function App() {
           {dataLoading ? <div className="empty-state"><p>Loading your applications…</p></div> : visibleApplications.length > 0 ? (
             <div className="table-wrap"><table><thead><tr><th>COMPANY & ROLE</th><th>DATE APPLIED</th><th>STATUS</th><th>NEXT STEP</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
               {visibleApplications.map((application) => <tr key={application.id}>
-                <td><div className="company-cell"><div className="company-logo" aria-hidden="true">{application.company.slice(0, 1).toUpperCase()}</div><button type="button" className="company-info application-open-button" onClick={() => setSelectedApplicationId(application.id)}><strong>{application.company}</strong><span>{application.role}{application.location ? ` · ${application.location}` : ''}</span>{application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && <span className="analysis-status">{application.skills?.length ?? 0} skills analyzed</span>}</button></div></td>
+                <td><div className="company-cell"><div className="company-logo" aria-hidden="true">{application.company.slice(0, 1).toUpperCase()}</div><button type="button" className="company-info application-open-button" onClick={() => { navigateTo('skills'); setSelectedApplicationId(application.id) }}><strong>{application.company}</strong><span>{application.role}{application.location ? ` · ${application.location}` : ''}</span>{application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && <span className="analysis-status">{application.skills?.length ?? 0} skills analyzed</span>}</button></div></td>
                 <td className="date-cell">{formatDate(application.dateApplied)}</td>
                 <td><StatusSelect status={application.status} onChange={(status) => void updateStatus(application.id, status)} /></td>
                 <td className="next-step-cell">{application.nextStep || <span className="muted-text">Add a reminder</span>}</td>
@@ -586,5 +577,4 @@ function formatDate(value: string) {
 }
 
 export default App
-
 
