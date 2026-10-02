@@ -8,6 +8,11 @@ const requiredSkill: JobSkill = {
   category: 'technical',
   importance: 'required',
   evidence: 'Build reliable applications.',
+  interviewQuestions: [
+    'How do you use TypeScript to prevent runtime errors?',
+    'How would you model a complex API response?',
+    'What trade-offs do strict compiler options introduce?',
+  ],
 }
 
 const preferredSkill: JobSkill = {
@@ -76,6 +81,47 @@ describe('SkillsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open application' }))
 
     expect(onOpenApplication).toHaveBeenCalledWith('application-1')
+  })
+
+  it('shows the saved interview questions for a repeated skill across applications', () => {
+    const application = createApplication({
+      skills: [requiredSkill],
+      skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/1',
+    })
+    const anotherApplication = createApplication({
+      id: 'application-2',
+      company: 'Globex',
+      role: 'Platform Engineer',
+      url: 'https://example.com/jobs/2',
+      skills: [{ ...requiredSkill }],
+      skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/2',
+    })
+    render(<SkillsPage applications={[application, anotherApplication]} loading={false} onOpenApplication={vi.fn()} />)
+
+    const [firstSkill] = screen.getAllByRole('button', { name: /TypeScript/ })
+    fireEvent.click(firstSkill)
+
+    expect(screen.getByText('How do you use TypeScript to prevent runtime errors?')).toBeTruthy()
+
+    const [, secondSkill] = screen.getAllByRole('button', { name: /TypeScript/ })
+    fireEvent.click(secondSkill)
+
+    expect(screen.getByText('How do you use TypeScript to prevent runtime errors?')).toBeTruthy()
+  })
+
+  it('explains how to generate interview questions for older saved analyses', () => {
+    const application = createApplication({
+      skills: [{ ...requiredSkill, interviewQuestions: undefined }],
+      skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/1',
+    })
+    render(<SkillsPage applications={[application]} loading={false} onOpenApplication={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /TypeScript/ }))
+
+    expect(screen.getByText('Interview questions are not available for this saved analysis yet. Open the application to generate them.')).toBeTruthy()
   })
 
   it('filters analyzed applications by skill importance', () => {

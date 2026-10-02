@@ -12,6 +12,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication }:
   const [search, setSearch] = useState('')
   const [importance, setImportance] = useState<ImportanceFilter>('All')
   const [collapsedApplications, setCollapsedApplications] = useState<Set<string>>(() => new Set())
+  const [selectedSkill, setSelectedSkill] = useState<{ applicationId: string; skillName: string } | null>(null)
   const analyzedApplications = applications.filter((application) =>
     application.skillsAnalyzedAt && application.skillsSourceUrl === application.url,
   )
@@ -94,11 +95,31 @@ export default function SkillsPage({ applications, loading, onOpenApplication }:
             </header>
             <div id={applicationContentId} hidden={isCollapsed}>
               {isAnalyzed ? <>
-                {skills.length ? <div className="skills-library-grid">{skills.map((skill) => <article className="analyzed-skill" key={`${skill.name}-${skill.evidence}`}>
-                  <div className="analyzed-skill-heading"><strong>{skill.name}</strong><span className={`importance importance-${skill.importance}`}>{skill.importance}</span></div>
-                  <div className="analyzed-skill-meta">{skill.category}</div>
-                  <blockquote>“{skill.evidence}”</blockquote>
-                </article>)}</div> : <div className="no-skills-found">{application.skills?.length ? `No ${importance.toLowerCase()} skills in this posting.` : 'No specific skills were found in the saved job posting.'}</div>}
+                {skills.length ? <div className="skills-library-grid">{skills.map((skill, index) => {
+                  const isSelected = selectedSkill?.applicationId === application.id && selectedSkill.skillName === skill.name
+                  const questionsId = `skill-questions-${application.id}-${index}`
+                  const questions = skill.interviewQuestions ?? []
+                  return <article className="analyzed-skill" key={`${skill.name}-${skill.evidence}`}>
+                    <button
+                      type="button"
+                      className="skill-practice-toggle"
+                      aria-expanded={isSelected}
+                      aria-controls={questionsId}
+                      onClick={() => setSelectedSkill(isSelected ? null : { applicationId: application.id, skillName: skill.name })}
+                    >
+                      <span className="analyzed-skill-heading"><strong>{skill.name}</strong><span className={`importance importance-${skill.importance}`}>{skill.importance}</span></span>
+                      <span className="analyzed-skill-meta">{skill.category}</span>
+                      <span className="skill-practice-hint">{isSelected ? 'Hide interview questions' : 'Practice interview questions'}</span>
+                    </button>
+                    <blockquote>“{skill.evidence}”</blockquote>
+                    {isSelected && <div className="skill-practice-questions" id={questionsId}>
+                      <h4>Interview practice for {skill.name}</h4>
+                      {questions.length
+                        ? <ol>{questions.map((question, questionIndex) => <li key={`${questionIndex}-${question}`}>{question}</li>)}</ol>
+                        : <p>Interview questions are not available for this saved analysis yet. Open the application to generate them.</p>}
+                    </div>}
+                  </article>
+                })}</div> : <div className="no-skills-found">{application.skills?.length ? `No ${importance.toLowerCase()} skills in this posting.` : 'No specific skills were found in the saved job posting.'}</div>}
                 {application.jobDescription && <details className="saved-job-description"><summary>View fetched job description</summary><pre>{application.jobDescription}</pre></details>}
               </> : <div className="skills-not-analyzed">{application.url ? 'Open the application to fetch the posting and analyze its skills.' : 'Add a job posting link to analyze this application.'}</div>}
             </div>

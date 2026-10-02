@@ -51,6 +51,8 @@ npx supabase db push
 npx supabase functions deploy analyze-job-posting
 ```
 
+Gemini generates three general interview questions per normalized skill name. Those question sets are stored in an account-scoped cache and reused when the same skill appears in another application; existing saved analyses are refreshed once the next time the application is opened.
+
 You can also store `GEMINI_API_KEY=your-key` in an ignored `.env` file and run `npx supabase secrets set --env-file .env`. Keep that file private and out of Git.
 
 For local Edge Function development, put `GEMINI_API_KEY=your-key` in `supabase/functions/.env` (this file is ignored by Git) and run `npx supabase functions serve analyze-job-posting --env-file supabase/functions/.env`.
