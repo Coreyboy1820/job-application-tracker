@@ -340,6 +340,26 @@ function App() {
     return true
   }
 
+  async function updateApplicationUrl(id: string, url: string): Promise<boolean> {
+    if (!client) return false
+    setError(null)
+    const { error: updateError } = await client.from('applications').update({
+      url,
+      job_description: '',
+      skills: [],
+      skills_analyzed_at: null,
+      skills_source_url: '',
+    }).eq('id', id)
+    if (updateError) {
+      setError(`Could not save the job posting link: ${updateError.message}`)
+      return false
+    }
+    setApplications((current) => current.map((item) => item.id === id ? {
+      ...item, url, jobDescription: '', skills: [], skillsAnalyzedAt: null, skillsSourceUrl: '',
+    } : item))
+    return true
+  }
+
   async function deleteApplication(id: string) {
     if (!client) return
     setError(null)
@@ -455,6 +475,14 @@ function App() {
       </main>
 
       {isFormOpen && <ApplicationModal key={editingApplication?.id ?? 'new'} application={editingApplication} onClose={() => { setIsFormOpen(false); setEditingApplication(null) }} onSave={(application) => editingApplication ? updateApplication(editingApplication.id, application) : addApplication(application)} />}
+      {selectedApplication && <ApplicationDetailView
+        key={selectedApplication.id}
+        application={selectedApplication}
+        analysis={analysis?.id === selectedApplication.id ? analysis : null}
+        onClose={() => { setSelectedApplicationId(null); setAnalysis(null) }}
+        onRetry={() => setAnalysisAttempt((attempt) => attempt + 1)}
+        onUpdateUrl={updateApplicationUrl}
+      />}
     </div>
   )
 }
@@ -577,4 +605,3 @@ function formatDate(value: string) {
 }
 
 export default App
-
