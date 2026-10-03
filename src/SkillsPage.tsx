@@ -132,9 +132,9 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
                     </button>
                     <blockquote>“{skill.evidence}”</blockquote>
                     <label className="skill-comfort-rating">
-                      <span>Study level</span>
+                      <span>Knowledge level</span>
                       <select
-                        aria-label={`Study level for ${skill.name}`}
+                        aria-label={`Knowledge level for ${skill.name}`}
                         value={getComfortRating(skill)}
                         onChange={(event) => {
                           if (isComfortRating(event.target.value)) {

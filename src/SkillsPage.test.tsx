@@ -166,7 +166,7 @@ describe('SkillsPage', () => {
     })
     renderSkillsPage([application, anotherApplication], { onUpdateSkillComfortRating })
 
-    const firstRating = screen.getAllByRole('combobox', { name: 'Study level for TypeScript' })[0]
+    const firstRating = screen.getAllByRole('combobox', { name: 'Knowledge level for TypeScript' })[0]
     expect((firstRating as HTMLSelectElement).value).toBe('medium')
     expect(Array.from((firstRating as HTMLSelectElement).options).map((option) => option.textContent)).toEqual([
       'Low',
@@ -190,7 +190,7 @@ describe('SkillsPage', () => {
 
     const skillCard = screen.getByRole('button', { name: /TypeScript/ }).closest('.analyzed-skill')
     expect(skillCard?.classList.contains('analyzed-skill-no-study')).toBe(true)
-    const studyLevel = screen.getByRole('combobox', { name: 'Study level for TypeScript' })
+    const studyLevel = screen.getByRole('combobox', { name: 'Knowledge level for TypeScript' })
     expect((studyLevel as HTMLSelectElement).value).toBe('no-study-needed')
     fireEvent.change(studyLevel, { target: { value: 'high' } })
     expect(onUpdateSkillComfortRating).toHaveBeenCalledWith('application-1', 'TypeScript', 'high')
@@ -206,7 +206,7 @@ describe('SkillsPage', () => {
     })
     renderSkillsPage([application])
 
-    expect((screen.getByRole('combobox', { name: 'Study level for TypeScript' }) as HTMLSelectElement).value).toBe('low')
+    expect((screen.getByRole('combobox', { name: 'Knowledge level for TypeScript' }) as HTMLSelectElement).value).toBe('low')
   })
 
   it('explains how to generate interview questions for older saved analyses', () => {
