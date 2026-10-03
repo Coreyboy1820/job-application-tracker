@@ -145,7 +145,7 @@ describe('application interview scheduling', () => {
     expect(supabaseMocks.update).not.toHaveBeenCalled()
   })
 
-  it('shows only future interviews in chronological order and opens the associated application', async () => {
+  it('shows only future interviews in chronological order and opens the associated application skills', async () => {
     configureSupabase([
       { id: 'later', date: '2099-04-03', time: '10:30', notes: 'Later round' },
       { id: 'past', date: '2000-04-03', time: '10:30', notes: 'Past round' },
@@ -155,7 +155,7 @@ describe('application interview scheduling', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Interviews/ }))
 
-    const agendaItems = await screen.findAllByRole('button', { name: 'Open Frontend Engineer at Acme' })
+    const agendaItems = await screen.findAllByRole('button', { name: 'View skills for Frontend Engineer at Acme' })
     expect(agendaItems).toHaveLength(2)
     expect(agendaItems[0].textContent).toContain('Earlier round')
     expect(agendaItems[1].textContent).toContain('Later round')
@@ -163,7 +163,8 @@ describe('application interview scheduling', () => {
 
     fireEvent.click(agendaItems[0])
 
-    expect(await screen.findByRole('dialog', { name: 'Acme' })).toBeTruthy()
-    expect(window.location.hash).toBe('#/applications')
+    const applicationFilter = await screen.findByRole('status')
+    expect(applicationFilter.textContent).toContain('Filtered to Frontend Engineer at Acme')
+    expect(window.location.hash).toBe('#/skills/application/application-1')
   })
 })

@@ -527,7 +527,7 @@ function App() {
         <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> {activePage === 'applications' ? 'Applications' : activePage === 'interviews' ? 'Interviews' : activePage === 'company-questions' ? <>Skills <span>/</span> {activeCompany}</> : 'Skills'}</span><button className="sign-out-button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button></header>
         {error && <div className="storage-message storage-error" role="alert">{error}</div>}
         {notice && <div className="storage-message storage-notice" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={() => setNotice(null)}><X size={15} /></button></div>}
-        {activePage === 'interviews' ? <UpcomingInterviewsPage interviews={upcomingInterviews} loading={dataLoading} onOpenApplication={openApplication} />
+        {activePage === 'interviews' ? <UpcomingInterviewsPage interviews={upcomingInterviews} loading={dataLoading} onOpenApplicationSkills={openApplicationSkills} />
           : activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} />
           : activePage === 'company-questions' && activeCompany
             ? <CompanyInterviewQuestionsPage company={activeCompany} applications={applications} onBack={() => navigateTo('skills')} />
@@ -598,18 +598,18 @@ function App() {
 function UpcomingInterviewsPage({
   interviews,
   loading,
-  onOpenApplication,
+  onOpenApplicationSkills,
 }: {
   interviews: UpcomingInterview[]
   loading: boolean
-  onOpenApplication: (id: string) => void
+  onOpenApplicationSkills: (id: string) => void
 }) {
   return <>
     <section className="page-heading">
       <div><div className="eyebrow">YOUR SCHEDULE</div><h1>Upcoming interviews</h1><p className="page-subtitle">Your next conversations, in date and time order.</p></div>
     </section>
     <section className="list-panel upcoming-interviews-panel">
-      <div className="panel-heading"><div><h2>Interview agenda</h2><p>Open an interview to view its application details.</p></div><span className="cloud-badge">{interviews.length} upcoming</span></div>
+      <div className="panel-heading"><div><h2>Interview agenda</h2><p>Open an interview to view skills for its application.</p></div><span className="cloud-badge">{interviews.length} upcoming</span></div>
       {loading ? <div className="empty-state"><p>Loading your interviews…</p></div> : interviews.length > 0 ? (
         <div className="upcoming-interview-list">
           {interviews.map((interview) => (
@@ -617,8 +617,8 @@ function UpcomingInterviewsPage({
               type="button"
               className="upcoming-interview"
               key={`${interview.applicationId}-${interview.id}`}
-              onClick={() => onOpenApplication(interview.applicationId)}
-              aria-label={`Open ${interview.role} at ${interview.company}`}
+              onClick={() => onOpenApplicationSkills(interview.applicationId)}
+              aria-label={`View skills for ${interview.role} at ${interview.company}`}
             >
               <span className="upcoming-interview-date"><CalendarDays size={17} /><time dateTime={`${interview.date}T${interview.time}`}>{formatInterviewDateTime(interview.date, interview.time)}</time></span>
               <span className="upcoming-interview-details">
