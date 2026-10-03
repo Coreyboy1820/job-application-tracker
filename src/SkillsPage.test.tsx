@@ -39,7 +39,7 @@ function createApplication(overrides: Partial<Application> = {}): Application {
 
 describe('SkillsPage', () => {
   it('shows loading feedback while applications are loading', () => {
-    render(<SkillsPage applications={[]} loading onOpenApplication={vi.fn()} />)
+    render(<SkillsPage applications={[]} loading onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
 
     expect(screen.getByText('Loading your skills…')).toBeTruthy()
   })
@@ -58,7 +58,7 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/2',
     })
-    render(<SkillsPage applications={[firstApplication, secondApplication]} loading={false} onOpenApplication={vi.fn()} />)
+    render(<SkillsPage applications={[firstApplication, secondApplication]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse Acme skills' }))
 
@@ -76,11 +76,20 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/1',
     })
-    render(<SkillsPage applications={[application]} loading={false} onOpenApplication={onOpenApplication} />)
+    render(<SkillsPage applications={[application]} loading={false} onOpenApplication={onOpenApplication} onOpenCompany={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Open application' }))
 
     expect(onOpenApplication).toHaveBeenCalledWith('application-1')
+  })
+
+  it('opens company interview questions from the company name', () => {
+    const onOpenCompany = vi.fn()
+    render(<SkillsPage applications={[createApplication()]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={onOpenCompany} />)
+
+    fireEvent.click(screen.getByRole('link', { name: 'Acme' }))
+
+    expect(onOpenCompany).toHaveBeenCalledWith('Acme')
   })
 
   it('shows the saved interview questions for a repeated skill across applications', () => {
@@ -98,7 +107,7 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/2',
     })
-    render(<SkillsPage applications={[application, anotherApplication]} loading={false} onOpenApplication={vi.fn()} />)
+    render(<SkillsPage applications={[application, anotherApplication]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
 
     const [firstSkill] = screen.getAllByRole('button', { name: /TypeScript/ })
     fireEvent.click(firstSkill)
@@ -117,7 +126,7 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/1',
     })
-    render(<SkillsPage applications={[application]} loading={false} onOpenApplication={vi.fn()} />)
+    render(<SkillsPage applications={[application]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: /TypeScript/ }))
 
@@ -139,7 +148,7 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/1',
     })
-    render(<SkillsPage applications={[requiredApplication, preferredApplication]} loading={false} onOpenApplication={vi.fn()} />)
+    render(<SkillsPage applications={[requiredApplication, preferredApplication]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Required' }))
 
@@ -153,7 +162,7 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/old',
     })
-    render(<SkillsPage applications={[application]} loading={false} onOpenApplication={vi.fn()} />)
+    render(<SkillsPage applications={[application]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
 
     expect(screen.getByText('0 unique skills')).toBeTruthy()
     const jobsAnalyzedStat = screen.getByText('Jobs analyzed').closest('article')
