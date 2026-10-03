@@ -4,6 +4,7 @@ import type { Application, JobSkill } from './types'
 type SkillQuestionGroup = {
   name: string
   category: JobSkill['category']
+  needsNoStudy: boolean
   roles: Set<string>
   questions: Map<string, string>
 }
@@ -29,7 +30,7 @@ export default function CompanyInterviewQuestionsPage({ company, applications, o
       <div className="panel-heading"><div><h2>Questions by skill</h2><p>Questions are grouped across this company's analyzed applications.</p></div></div>
       {groups.length
         ? <div className="company-questions-list">{groups.map((group) => <article className="company-skill-questions" key={normalizeSkillName(group.name)}>
-          <div className="company-skill-heading"><div><h3>{group.name}</h3><span className="analyzed-skill-meta">{group.category}</span></div></div>
+          <div className={`company-skill-heading${group.needsNoStudy ? ' company-skill-no-study' : ''}`}><div><h3>{group.name}</h3><span className="analyzed-skill-meta">{group.category}</span></div></div>
           {group.roles.size > 0 && <p className="company-skill-roles">Roles: {[...group.roles].join(', ')}</p>}
           <ol>{[...group.questions.values()].map((question) => <li key={question}>{question}</li>)}</ol>
         </article>)}</div>
@@ -45,6 +46,7 @@ export default function CompanyInterviewQuestionsPage({ company, applications, o
 export function collectCompanyInterviewQuestions(applications: Application[], company: string): Array<{
   name: string
   category: JobSkill['category']
+  needsNoStudy: boolean
   roles: Set<string>
   questions: Map<string, string>
 }> {
@@ -61,9 +63,10 @@ export function collectCompanyInterviewQuestions(applications: Application[], co
       if (!key) continue
       let group = groups.get(key)
       if (!group) {
-        group = { name: skill.name, category: skill.category, roles: new Set(), questions: new Map() }
+        group = { name: skill.name, category: skill.category, needsNoStudy: false, roles: new Set(), questions: new Map() }
         groups.set(key, group)
       }
+      group.needsNoStudy ||= Boolean(skill.needsNoStudy)
       if (application.role.trim()) group.roles.add(application.role.trim())
       for (const question of questions) {
         const text = question.trim()

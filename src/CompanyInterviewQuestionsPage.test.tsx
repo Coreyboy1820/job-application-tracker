@@ -73,6 +73,15 @@ describe('CompanyInterviewQuestionsPage', () => {
     expect(screen.getByRole('status').textContent).toContain('No interview questions available yet')
   })
 
+  it('crosses out a skill marked as not needing study', () => {
+    const application = createApplication({
+      skills: [{ ...typeScript, needsNoStudy: true }],
+    })
+    render(<CompanyInterviewQuestionsPage company="Acme" applications={[application]} onBack={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { name: 'TypeScript' }).parentElement?.parentElement?.classList.contains('company-skill-no-study')).toBe(true)
+  })
+
   it('returns to the Skills view from the back button', () => {
     const onBack = vi.fn()
     render(<CompanyInterviewQuestionsPage company="Acme" applications={[]} onBack={onBack} />)
