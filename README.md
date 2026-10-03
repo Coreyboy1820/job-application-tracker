@@ -42,6 +42,7 @@ The **CI / Build and test** check runs on pull requests targeting `main` and pus
 - View upcoming interviews in chronological order from the Interviews page; open any interview to return to its application.
 - Search, filter, sort, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
 - Click a company or role to open its details and analyze its saved job posting link. Rolecall reads the page, asks an AI model to identify stated skills, and saves the description, evidence, and skill list to that application. Results are cached for the link and reused when you open the application again. Use **View skills** in the details to go to the Skills page.
+- In the Skills page, use an application's skill suggestions to mark skills that do not need study. The flag is saved with that application's skill data; skills stay visible and can be marked for study again.
 - If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
 
 ### Configure job-posting analysis
@@ -73,4 +74,3 @@ The function only accepts public HTTPS posting links, limits downloaded pages to
 - `index.html` is the page Vite serves; React mounts into its `#root` element.
 
 Supabase Auth identifies the user. Every application row has a `user_id`; the database enforces ownership even if a browser client is modified. The publishable key is safe to include in the frontend only because the table grants and RLS policies are restrictive. User data is no longer written to local storage, aside from the one-time import marker and the legacy records kept for import.
-
