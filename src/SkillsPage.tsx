@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { ArrowUpRight, BriefcaseBusiness, ChevronDown, Search, Sparkles } from 'lucide-react'
-import type { Application, JobSkill } from './types'
-import { NO_STUDY_PRIORITY, getSkillPriority } from './skillPriority'
+import type { Application, ComfortRating, JobSkill } from './types'
+import { comfortRatings, getComfortRating, NO_STUDY_PRIORITY, getSkillPriority, isComfortRating } from './skillPriority'
 
 type ImportanceFilter = 'All' | JobSkill['importance']
 
-export default function SkillsPage({ applications, loading, onOpenApplication, onOpenCompany, onOpenApplicationSkills, applicationFilterId, onClearApplicationFilter, onUpdateSkillStudyStatus }: {
+export default function SkillsPage({ applications, loading, onOpenApplication, onOpenCompany, onOpenApplicationSkills, applicationFilterId, onClearApplicationFilter, onUpdateSkillStudyStatus, onUpdateSkillComfortRating }: {
   applications: Application[]
   loading: boolean
   onOpenApplication: (id: string) => void
@@ -14,6 +14,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
   applicationFilterId: string | null
   onClearApplicationFilter: () => void
   onUpdateSkillStudyStatus: (applicationId: string, skillName: string, needsNoStudy: boolean) => Promise<boolean>
+  onUpdateSkillComfortRating: (applicationId: string, skillName: string, comfortRating: ComfortRating) => Promise<boolean>
 }) {
   const [search, setSearch] = useState('')
   const [importance, setImportance] = useState<ImportanceFilter>('All')
@@ -140,6 +141,21 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
                     >
                       {needsNoStudy ? 'Mark as needing study' : 'Mark as not needing study'}
                     </button>
+                    <label className="skill-comfort-rating">
+                      <span>Comfort level</span>
+                      <select
+                        aria-label={`Comfort level for ${skill.name}`}
+                        value={getComfortRating(skill)}
+                        onChange={(event) => {
+                          if (isComfortRating(event.target.value)) {
+                            void onUpdateSkillComfortRating(application.id, skill.name, event.target.value)
+                          }
+                        }}
+                      >
+                        <option value="">Choose a comfort level</option>
+                        {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
+                      </select>
+                    </label>
                     {isSelected && <div className="skill-practice-questions" id={questionsId}>
                       <h4>Interview practice for {skill.name}</h4>
                       {questions.length

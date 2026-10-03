@@ -20,8 +20,8 @@ import {
 import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { loadApplications as loadLocalApplications } from './storage'
-import type { Application, Interview, JobSkill, Status } from './types'
-import { DEFAULT_SKILL_PRIORITY, NO_STUDY_PRIORITY, getSkillPriority } from './skillPriority'
+import type { Application, ComfortRating, Interview, JobSkill, Status } from './types'
+import { getSkillPriority, NO_STUDY_PRIORITY, withComfortRating, withNoStudyStatus } from './skillPriority'
 import SkillsPage from './SkillsPage'
 import CompanyInterviewQuestionsPage from './CompanyInterviewQuestionsPage'
 import './cloud.css'
@@ -468,13 +468,21 @@ function App() {
   }
 
   async function updateSkillStudyStatus(id: string, skillName: string, needsNoStudy: boolean): Promise<boolean> {
+    return updateSkill(id, skillName, (skill) => withNoStudyStatus(skill, needsNoStudy), 'Could not update skill study status')
+  }
+
+  async function updateSkillComfortRating(id: string, skillName: string, comfortRating: ComfortRating): Promise<boolean> {
+    return updateSkill(id, skillName, (skill) => withComfortRating(skill, comfortRating), 'Could not update skill comfort level')
+  }
+
+  async function updateSkill(id: string, skillName: string, updateSkill: (skill: JobSkill) => JobSkill, errorContext: string): Promise<boolean> {
     if (!client) return false
     const application = applications.find((item) => item.id === id)
     if (!application) return false
     const normalizedName = skillName.trim().toLowerCase()
     const skills = (application.skills ?? []).map((skill) => (
       skill.name.trim().toLowerCase() === normalizedName
-        ? { ...skill, needsNoStudy, priority: needsNoStudy ? NO_STUDY_PRIORITY : DEFAULT_SKILL_PRIORITY }
+        ? updateSkill(skill)
         : skill
     ))
     if (!skills.some((skill) => skill.name.trim().toLowerCase() === normalizedName)) return false
@@ -487,7 +495,7 @@ function App() {
         .select(applicationColumns)
         .single()
       if (updateError) {
-        setError(`Could not update skill study status: ${updateError.message}`)
+        setError(`${errorContext}: ${updateError.message}`)
         return false
       }
 
@@ -495,7 +503,7 @@ function App() {
       setApplications((current) => current.map((item) => item.id === id ? updated : item))
       return true
     } catch (reason) {
-      setError(`Could not update skill study status: ${reason instanceof Error ? reason.message : 'An unexpected error occurred.'}`)
+      setError(`${errorContext}: ${reason instanceof Error ? reason.message : 'An unexpected error occurred.'}`)
       return false
     }
   }
@@ -573,7 +581,7 @@ function App() {
         {error && <div className="storage-message storage-error" role="alert">{error}</div>}
         {notice && <div className="storage-message storage-notice" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={() => setNotice(null)}><X size={15} /></button></div>}
         {activePage === 'interviews' ? <UpcomingInterviewsPage interviews={upcomingInterviews} loading={dataLoading} onOpenApplicationSkills={openApplicationSkills} />
-          : activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} onUpdateSkillStudyStatus={updateSkillStudyStatus} />
+          : activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} onUpdateSkillStudyStatus={updateSkillStudyStatus} onUpdateSkillComfortRating={updateSkillComfortRating} />
           : activePage === 'company-questions' && activeCompany
             ? <CompanyInterviewQuestionsPage company={activeCompany} applications={applications} onBack={() => navigateTo('skills')} />
             : <>

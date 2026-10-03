@@ -42,7 +42,7 @@ The **CI / Build and test** check runs on pull requests targeting `main` and pus
 - View upcoming interviews in chronological order from the Interviews page; open any interview to return to its application.
 - Search, filter, sort, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
 - Click a company or role to open its details and analyze its saved job posting link. Rolecall reads the page, asks an AI model to identify stated skills, and saves the description, evidence, and skill list to that application. Results are cached for the link and reused when you open the application again. Use **View skills** in the details to go to the Skills page.
-- In the Skills page, use an application's skill suggestions to mark skills that do not need study. Numeric priorities are stored per application skill; lower numbers sort first, and 0 means no study. Company interview practice groups skills across roles and moves skills with no-study status for every associated role to the bottom.
+- In the Skills page, use an application's skill suggestions to mark skills that do not need study, or choose a comfort level for each skill. Comfort ratings are stored per application skill and feed the existing study-priority ordering: less-comfortable skills sort first, while skills marked as not needing study remain crossed out and sort last. Company interview practice groups skills across roles and moves skills with no-study status for every associated role to the bottom.
 - If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
 
 ### Configure job-posting analysis

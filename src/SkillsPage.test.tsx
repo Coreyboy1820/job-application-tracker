@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import SkillsPage from './SkillsPage'
-import type { Application, JobSkill } from './types'
+import type { Application, ComfortRating, JobSkill } from './types'
 
 const requiredSkill: JobSkill = {
   name: 'TypeScript',
@@ -48,6 +48,7 @@ describe('SkillsPage', () => {
     onOpenApplicationSkills?: (id: string) => void
     onClearApplicationFilter?: () => void
     onUpdateSkillStudyStatus?: (applicationId: string, skillName: string, needsNoStudy: boolean) => Promise<boolean>
+    onUpdateSkillComfortRating?: (applicationId: string, skillName: string, comfortRating: ComfortRating) => Promise<boolean>
   } = {}) {
     return render(<SkillsPage
       applications={applications}
@@ -58,6 +59,7 @@ describe('SkillsPage', () => {
       applicationFilterId={options.applicationFilterId ?? null}
       onClearApplicationFilter={options.onClearApplicationFilter ?? noop}
       onUpdateSkillStudyStatus={options.onUpdateSkillStudyStatus ?? (async () => true)}
+      onUpdateSkillComfortRating={options.onUpdateSkillComfortRating ?? (async () => true)}
     />)
   }
 
@@ -164,6 +166,39 @@ describe('SkillsPage', () => {
     expect(onUpdateSkillStudyStatus).toHaveBeenCalledWith('application-1', 'React', true)
   })
 
+  it('shows and updates the comfort rating for the selected application skill', () => {
+    const onUpdateSkillComfortRating = vi.fn(async () => true)
+    const application = createApplication({
+      skills: [{ ...requiredSkill, comfortRating: 'somewhat-comfortable' }],
+      skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/1',
+    })
+    const anotherApplication = createApplication({
+      id: 'application-2',
+      company: 'Globex',
+      role: 'Platform Engineer',
+      url: 'https://example.com/jobs/2',
+      skills: [{ ...requiredSkill }],
+      skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/2',
+    })
+    renderSkillsPage([application, anotherApplication], { onUpdateSkillComfortRating })
+
+    const firstRating = screen.getAllByRole('combobox', { name: 'Comfort level for TypeScript' })[0]
+    expect((firstRating as HTMLSelectElement).value).toBe('somewhat-comfortable')
+    expect(Array.from((firstRating as HTMLSelectElement).options).map((option) => option.textContent)).toEqual([
+      'Choose a comfort level',
+      "Don't need to study",
+      'Very comfortable',
+      'Somewhat comfortable',
+      'Need more practice',
+      "Don't know at all",
+    ])
+    fireEvent.change(firstRating, { target: { value: 'dont-know-at-all' } })
+
+    expect(onUpdateSkillComfortRating).toHaveBeenCalledWith('application-1', 'TypeScript', 'dont-know-at-all')
+  })
+
   it('offers unflagging and explains when all matching skills are already marked', () => {
     const onUpdateSkillStudyStatus = vi.fn(async () => true)
     const application = createApplication({
@@ -175,6 +210,7 @@ describe('SkillsPage', () => {
 
     const skillCard = screen.getByRole('button', { name: /TypeScript/ }).closest('.analyzed-skill')
     expect(skillCard?.classList.contains('analyzed-skill-no-study')).toBe(true)
+    expect((screen.getByRole('combobox', { name: 'Comfort level for TypeScript' }) as HTMLSelectElement).value).toBe('dont-need-to-study')
     fireEvent.click(screen.getByRole('button', { name: 'Mark as needing study' }))
     expect(onUpdateSkillStudyStatus).toHaveBeenCalledWith('application-1', 'TypeScript', false)
 

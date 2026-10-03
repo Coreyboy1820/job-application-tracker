@@ -92,6 +92,21 @@ describe('CompanyInterviewQuestionsPage', () => {
     expect(skillCards[3]?.textContent).toContain('No-study Engineer (0)')
   })
 
+  it('orders company practice questions by comfort rating and keeps no-study skills last', () => {
+    const application = createApplication({
+      skills: [
+        { ...typeScript, name: 'No study', comfortRating: 'dont-need-to-study' },
+        { ...typeScript, name: 'Very comfortable', comfortRating: 'very-comfortable' },
+        { ...typeScript, name: 'Needs practice', comfortRating: 'need-practice' },
+        { ...typeScript, name: 'Unfamiliar', comfortRating: 'dont-know-at-all' },
+      ],
+    })
+    render(<CompanyInterviewQuestionsPage company="Acme" applications={[application]} onBack={vi.fn()} />)
+
+    const skillNames = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
+    expect(skillNames).toEqual(['Unfamiliar', 'Needs practice', 'Very comfortable', 'No study'])
+  })
+
   it('keeps a grouped skill active when another role still needs to study it', () => {
     const noStudyApplication = createApplication({
       role: 'No-study Engineer',

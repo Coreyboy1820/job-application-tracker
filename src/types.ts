@@ -1,11 +1,19 @@
 export type Status = 'Interested' | 'Applied' | 'Interviewing' | 'Offer' | 'Rejected'
 
+export type ComfortRating =
+  | 'dont-need-to-study'
+  | 'very-comfortable'
+  | 'somewhat-comfortable'
+  | 'need-practice'
+  | 'dont-know-at-all'
+
 export type JobSkill = {
   name: string
   category: 'technical' | 'tools' | 'domain' | 'process' | 'other'
   importance: 'required' | 'preferred' | 'mentioned'
   evidence: string
   interviewQuestions?: string[]
+  comfortRating?: ComfortRating
   needsNoStudy?: boolean
   priority?: number
 }
