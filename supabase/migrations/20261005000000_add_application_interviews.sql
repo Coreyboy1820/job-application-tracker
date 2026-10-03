@@ -1,3 +1,3 @@
 alter table public.applications
-  add column interviews jsonb not null default '[]'::jsonb
+  add column if not exists interviews jsonb not null default '[]'::jsonb
   check (jsonb_typeof(interviews) = 'array');
