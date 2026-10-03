@@ -104,14 +104,17 @@ describe('SkillsPage', () => {
     expect(onOpenApplication).toHaveBeenCalledWith('application-1')
   })
 
-  it('opens company interview questions from the company name', () => {
+  it('opens company interview questions from the company name and keeps application skills accessible', () => {
+    const onOpenCompany = vi.fn()
     const onOpenApplicationSkills = vi.fn()
-    renderSkillsPage([createApplication()], { onOpenApplicationSkills })
+    renderSkillsPage([createApplication()], { onOpenCompany, onOpenApplicationSkills })
 
     const companyLink = screen.getByRole('link', { name: 'Acme' })
-    expect(companyLink.getAttribute('href')).toBe('#/skills/application/application-1')
+    expect(companyLink.getAttribute('href')).toBe('#/skills/company/Acme')
     fireEvent.click(companyLink)
 
+    expect(onOpenCompany).toHaveBeenCalledWith('Acme')
+    fireEvent.click(screen.getByRole('button', { name: 'View skills' }))
     expect(onOpenApplicationSkills).toHaveBeenCalledWith('application-1')
   })
 

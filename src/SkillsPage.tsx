@@ -92,9 +92,10 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
           return <article className="skills-application" key={application.id}>
             <header className="skills-application-header">
               <div className="skills-company-mark"><BriefcaseBusiness size={16} /></div>
-              <div className="skills-application-title"><h3><a className="skills-company-link" href={`#/skills/application/${encodeURIComponent(application.id)}`} onClick={(event) => { event.preventDefault(); onOpenApplicationSkills(application.id) }}>{application.company}</a></h3><p>{application.role}{application.location ? ` · ${application.location}` : ''}</p><span className="skills-application-meta">{application.status} · Applied {formatDate(application.dateApplied)}{isAnalyzed && application.skillsAnalyzedAt ? ` · Analyzed ${formatDate(application.skillsAnalyzedAt.slice(0, 10))}` : ''}</span></div>
+              <div className="skills-application-title"><h3><a className="skills-company-link" href={`#/skills/company/${encodeURIComponent(application.company)}`} onClick={(event) => { event.preventDefault(); onOpenCompany(application.company) }}>{application.company}</a></h3><p>{application.role}{application.location ? ` · ${application.location}` : ''}</p><span className="skills-application-meta">{application.status} · Applied {formatDate(application.dateApplied)}{isAnalyzed && application.skillsAnalyzedAt ? ` · Analyzed ${formatDate(application.skillsAnalyzedAt.slice(0, 10))}` : ''}</span></div>
               <div className="skills-application-actions">
                 {application.url && <a className="skills-original-link" href={application.url} target="_blank" rel="noreferrer">Posting <ArrowUpRight size={13} /></a>}
+                <button type="button" className="skills-application-skills-link" onClick={() => onOpenApplicationSkills(application.id)}>View skills</button>
                 <button type="button" className="secondary-button" onClick={() => onOpenApplication(application.id)}>{isAnalyzed ? 'Open application' : 'Analyze posting'}</button>
                 <button
                   type="button"
