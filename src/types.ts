@@ -6,6 +6,8 @@ export type JobSkill = {
   importance: 'required' | 'preferred' | 'mentioned'
   evidence: string
   interviewQuestions?: string[]
+  needsNoStudy?: boolean
+  priority?: number
 }
 
 export type Interview = {
