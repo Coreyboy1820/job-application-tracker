@@ -4,17 +4,24 @@ import type { Application, JobSkill } from './types'
 
 type ImportanceFilter = 'All' | JobSkill['importance']
 
-export default function SkillsPage({ applications, loading, onOpenApplication, onOpenCompany }: {
+export default function SkillsPage({ applications, loading, onOpenApplication, onOpenCompany, onOpenApplicationSkills, applicationFilterId, onClearApplicationFilter }: {
   applications: Application[]
   loading: boolean
   onOpenApplication: (id: string) => void
   onOpenCompany: (company: string) => void
+  onOpenApplicationSkills: (id: string) => void
+  applicationFilterId: string | null
+  onClearApplicationFilter: () => void
 }) {
   const [search, setSearch] = useState('')
   const [importance, setImportance] = useState<ImportanceFilter>('All')
   const [collapsedApplications, setCollapsedApplications] = useState<Set<string>>(() => new Set())
   const [selectedSkill, setSelectedSkill] = useState<{ applicationId: string; skillName: string } | null>(null)
-  const analyzedApplications = applications.filter((application) =>
+  const scopedApplications = applicationFilterId
+    ? applications.filter((application) => application.id === applicationFilterId)
+    : applications
+  const selectedApplication = scopedApplications[0]
+  const analyzedApplications = scopedApplications.filter((application) =>
     application.skillsAnalyzedAt && application.skillsSourceUrl === application.url,
   )
   const allSkills = analyzedApplications.flatMap((application) => application.skills ?? [])
@@ -22,7 +29,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
 
   const filteredApplications = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return applications.filter((application) => {
+    return scopedApplications.filter((application) => {
       const skills = application.skills ?? []
       const hasMatchingImportance = importance === 'All'
         || skills.some((skill) => skill.importance === importance)
@@ -36,7 +43,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
       ].join(' ').toLowerCase()
       return hasMatchingImportance && (!query || searchableText.includes(query))
     })
-  }, [applications, importance, search])
+  }, [scopedApplications, importance, search])
 
   function toggleApplication(applicationId: string) {
     setCollapsedApplications((current) => {
@@ -49,19 +56,26 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
 
   return <>
     <section className="page-heading skills-page-heading">
-      <div><div className="eyebrow">JOB SEARCH LIBRARY</div><h1>Skills</h1><p className="page-subtitle">Skills and supporting evidence gathered from your job postings.</p></div>
+      <div><div className="eyebrow">JOB SEARCH LIBRARY</div><h1>Skills</h1><p className="page-subtitle">{selectedApplication ? `Skills for ${selectedApplication.role} at ${selectedApplication.company}.` : 'Skills and supporting evidence gathered from your job postings.'}</p></div>
       <div className="skills-page-total"><Sparkles size={17} /><span>{uniqueSkillCount} unique skill{uniqueSkillCount === 1 ? '' : 's'}</span></div>
     </section>
+    {applicationFilterId && <div className="skills-application-filter" role="status">
+      {selectedApplication
+        ? <span>Filtered to <strong>{selectedApplication.role}</strong> at <strong>{selectedApplication.company}</strong>.</span>
+        : <span>The selected application is no longer available.</span>}
+      {selectedApplication && <button type="button" className="skills-company-questions-link" onClick={() => onOpenCompany(selectedApplication.company)}>View company interview questions</button>}
+      <button type="button" className="skills-clear-filter" onClick={onClearApplicationFilter}>Show all skills</button>
+    </div>}
 
     <section className="stats-grid skills-stats-grid" aria-label="Skills summary">
-      <SkillStat label="Jobs analyzed" value={analyzedApplications.length} caption={`of ${applications.length} applications`} />
+      <SkillStat label="Jobs analyzed" value={analyzedApplications.length} caption={`of ${scopedApplications.length} applications`} />
       <SkillStat label="Skill mentions" value={allSkills.length} caption="Across analyzed postings" />
       <SkillStat label="Required skills" value={allSkills.filter((skill) => skill.importance === 'required').length} caption="Marked as required" />
       <SkillStat label="Preferred skills" value={allSkills.filter((skill) => skill.importance === 'preferred').length} caption="Marked as preferred" />
     </section>
 
     <section className="list-panel skills-library">
-      <div className="panel-heading"><div><h2>Skills by application</h2><p>Each skill includes the job-posting quote that supports it.</p></div><span className="cloud-badge">Synced to your account</span></div>
+      <div className="panel-heading"><div><h2>Skills by application</h2><p>Each skill includes the job-posting quote that supports it.</p></div>{!applicationFilterId && <span className="cloud-badge">Synced to your account</span>}</div>
       <div className="skills-toolbar">
         <label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search skills and roles…" /></label>
         <div className="skills-filter" role="group" aria-label="Filter by importance">
@@ -81,6 +95,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
               <div className="skills-application-title"><h3><a className="skills-company-link" href={`#/skills/company/${encodeURIComponent(application.company)}`} onClick={(event) => { event.preventDefault(); onOpenCompany(application.company) }}>{application.company}</a></h3><p>{application.role}{application.location ? ` · ${application.location}` : ''}</p><span className="skills-application-meta">{application.status} · Applied {formatDate(application.dateApplied)}{isAnalyzed && application.skillsAnalyzedAt ? ` · Analyzed ${formatDate(application.skillsAnalyzedAt.slice(0, 10))}` : ''}</span></div>
               <div className="skills-application-actions">
                 {application.url && <a className="skills-original-link" href={application.url} target="_blank" rel="noreferrer">Posting <ArrowUpRight size={13} /></a>}
+                <button type="button" className="skills-application-skills-link" onClick={() => onOpenApplicationSkills(application.id)}>View skills</button>
                 <button type="button" className="secondary-button" onClick={() => onOpenApplication(application.id)}>{isAnalyzed ? 'Open application' : 'Analyze posting'}</button>
                 <button
                   type="button"
@@ -127,7 +142,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
           </article>
         })}
       </div> : <div className="empty-state"><div className="empty-illustration"><Sparkles size={20} /></div><h3>{applications.length ? 'No matching skills' : 'No applications yet'}</h3><p>{applications.length ? 'Try a different search or importance filter.' : 'Add an application with a job posting link to start collecting skills.'}</p></div>}
-      <div className="panel-footer"><span>Showing <strong>{filteredApplications.length}</strong> of <strong>{applications.length}</strong> applications</span><span className="privacy-note"><span className="privacy-dot" /> Stored securely in your account</span></div>
+      <div className="panel-footer"><span>Showing <strong>{filteredApplications.length}</strong> of <strong>{scopedApplications.length}</strong> applications</span><span className="privacy-note"><span className="privacy-dot" /> Stored securely in your account</span></div>
     </section>
     <footer className="page-footer">Made for the long game <span>✳</span></footer>
   </>
