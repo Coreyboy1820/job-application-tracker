@@ -6,7 +6,7 @@ A React + TypeScript web app for tracking job applications across devices. Supab
 
 1. Create a project in the [Supabase dashboard](https://supabase.com/dashboard).
 2. Copy `.env.example` to `.env.local` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the project's **Connect** dialog. The publishable key is intended for browser use. **Never put a service-role or secret key in a `VITE_` variable.**
-3. Install the Supabase CLI and sign in. Then link the project and apply the checked-in schema migration:
+3. Install the Supabase CLI and sign in. Then link the project and apply the checked-in database migrations:
 
    ```sh
    npx supabase login
@@ -14,7 +14,7 @@ A React + TypeScript web app for tracking job applications across devices. Supab
    npx supabase db push
    ```
 
-   The project ref is in the Supabase project URL. The migration creates the applications table, indexes, grants, and per-user Row Level Security policies.
+   The project ref is in the Supabase project URL. The migrations create the applications table, indexes, grants, and per-user Row Level Security policies.
 4. In the Supabase dashboard, set the Auth site's URL and redirect URL to the app's URL. For local development, use `http://localhost:5173`. Email confirmation is on by default for hosted projects; a new user may need to confirm their email before signing in.
 
 For GitHub Actions builds, add repository variables named `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` under **Settings → Secrets and variables → Actions → Variables**. The build workflow reads these values. They are publishable browser settings, not private credentials; never add a service-role or secret key to the app or workflow.
@@ -38,6 +38,7 @@ The **CI / Build and test** check runs on pull requests targeting `main` and pus
 
 - Create an account or sign in with email and password.
 - Add an application with its company, role, status, date, posting link, notes, and next step.
+- Schedule, edit, and remove multiple interview rounds for each application.
 - Search, filter, sort, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
 - Click a company or role to open its details and analyze its saved job posting link. Rolecall reads the page, asks an AI model to identify stated skills, and saves the description, evidence, and skill list to that application. Results are cached for the link and reused when you open the application again. Use **View skills** in the details to go to the Skills page.
 - If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
