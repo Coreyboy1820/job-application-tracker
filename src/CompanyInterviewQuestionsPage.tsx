@@ -1,6 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import type { Application, JobSkill } from './types'
-import { NO_STUDY_PRIORITY, getSkillPriority } from './skillPriority'
+import { NO_STUDY_PRIORITY, comfortRatings, getComfortRatingPriority, getSkillPriority } from './skillPriority'
 
 type SkillQuestionGroup = {
   name: string
@@ -31,7 +31,12 @@ export default function CompanyInterviewQuestionsPage({ company, applications, o
       <div className="panel-heading"><div><h2>Questions by skill</h2><p>Questions are grouped across this company's analyzed applications.</p></div></div>
       {groups.length
         ? <div className="company-questions-list">{groups.map((group) => <article className={`company-skill-questions${group.priority === NO_STUDY_PRIORITY ? ' company-skill-no-study' : ''}`} key={normalizeSkillName(group.name)}>
-          <div className="company-skill-heading"><div><h3>{group.name}</h3><span className="analyzed-skill-meta">{group.category}</span></div></div>
+          <div className="company-skill-heading">
+            <div><h3>{group.name}</h3><span className="analyzed-skill-meta">{group.category}</span></div>
+            <span className="company-skill-knowledge-level" title="Lowest knowledge level among roles still needing study; No study needed when all roles need no study.">
+              Knowledge level: {comfortRatings.find((rating) => getComfortRatingPriority(rating.value) === group.priority)?.label}
+            </span>
+          </div>
           {group.roles.size > 0 && <p className="company-skill-roles">Roles: {[...group.roles].map(([role, priority]) => `${role} (${priority})`).join(', ')}</p>}
           <ol>{[...group.questions.values()].map((question) => <li key={question}>{question}</li>)}</ol>
         </article>)}</div>

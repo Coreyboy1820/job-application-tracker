@@ -90,6 +90,9 @@ describe('CompanyInterviewQuestionsPage', () => {
     expect(skillCards[1]?.classList.contains('company-skill-no-study')).toBe(false)
     expect(skillCards[3]?.classList.contains('company-skill-no-study')).toBe(true)
     expect(skillCards[3]?.textContent).toContain('No-study Engineer (0)')
+    expect(skillCards.map((card) => card?.querySelector('.company-skill-knowledge-level')?.textContent)).toEqual([
+      'Knowledge level: Low', 'Knowledge level: Medium', 'Knowledge level: High', 'Knowledge level: No study needed',
+    ])
   })
 
   it('orders company practice questions by comfort rating and keeps no-study skills last', () => {
@@ -122,6 +125,7 @@ describe('CompanyInterviewQuestionsPage', () => {
     const skillCard = screen.getByRole('heading', { name: 'TypeScript' }).closest('article')
     expect(skillCard?.classList.contains('company-skill-no-study')).toBe(false)
     expect(within(skillCard as HTMLElement).getByText('Roles: No-study Engineer (0), Frontend Engineer (2)')).toBeTruthy()
+    expect(within(skillCard as HTMLElement).getByText('Knowledge level: Medium')).toBeTruthy()
   })
 
   it('returns to the Skills view from the back button', () => {
