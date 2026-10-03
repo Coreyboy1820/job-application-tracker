@@ -1,11 +1,10 @@
 export type Status = 'Interested' | 'Applied' | 'Interviewing' | 'Offer' | 'Rejected'
 
 export type ComfortRating =
-  | 'dont-need-to-study'
-  | 'very-comfortable'
-  | 'somewhat-comfortable'
-  | 'need-practice'
-  | 'dont-know-at-all'
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'no-study-needed'
 
 export type JobSkill = {
   name: string

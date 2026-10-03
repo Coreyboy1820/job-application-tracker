@@ -5,7 +5,7 @@ import { comfortRatings, getComfortRating, NO_STUDY_PRIORITY, getSkillPriority, 
 
 type ImportanceFilter = 'All' | JobSkill['importance']
 
-export default function SkillsPage({ applications, loading, onOpenApplication, onOpenCompany, onOpenApplicationSkills, applicationFilterId, onClearApplicationFilter, onUpdateSkillStudyStatus, onUpdateSkillComfortRating }: {
+export default function SkillsPage({ applications, loading, onOpenApplication, onOpenCompany, onOpenApplicationSkills, applicationFilterId, onClearApplicationFilter, onUpdateSkillComfortRating }: {
   applications: Application[]
   loading: boolean
   onOpenApplication: (id: string) => void
@@ -13,7 +13,6 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
   onOpenApplicationSkills: (id: string) => void
   applicationFilterId: string | null
   onClearApplicationFilter: () => void
-  onUpdateSkillStudyStatus: (applicationId: string, skillName: string, needsNoStudy: boolean) => Promise<boolean>
   onUpdateSkillComfortRating: (applicationId: string, skillName: string, comfortRating: ComfortRating) => Promise<boolean>
 }) {
   const [search, setSearch] = useState('')
@@ -114,7 +113,6 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
             </header>
             <div id={applicationContentId} hidden={isCollapsed}>
               {isAnalyzed ? <>
-                <SkillStudyTypeahead application={application} onUpdateSkillStudyStatus={onUpdateSkillStudyStatus} />
                 {skills.length ? <div className="skills-library-grid">{skills.map((skill, index) => {
                   const isSelected = selectedSkill?.applicationId === application.id && selectedSkill.skillName === skill.name
                   const questionsId = `skill-questions-${application.id}-${index}`
@@ -133,18 +131,10 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
                       <span className="skill-practice-hint">{isSelected ? 'Hide interview questions' : 'Practice interview questions'}</span>
                     </button>
                     <blockquote>“{skill.evidence}”</blockquote>
-                    <button
-                      type="button"
-                      className="skill-study-status-button"
-                      aria-pressed={needsNoStudy}
-                      onClick={() => void onUpdateSkillStudyStatus(application.id, skill.name, !needsNoStudy)}
-                    >
-                      {needsNoStudy ? 'Mark as needing study' : 'Mark as not needing study'}
-                    </button>
                     <label className="skill-comfort-rating">
-                      <span>Comfort level</span>
+                      <span>Study level</span>
                       <select
-                        aria-label={`Comfort level for ${skill.name}`}
+                        aria-label={`Study level for ${skill.name}`}
                         value={getComfortRating(skill)}
                         onChange={(event) => {
                           if (isComfortRating(event.target.value)) {
@@ -152,7 +142,6 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
                           }
                         }}
                       >
-                        <option value="">Choose a comfort level</option>
                         {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
                       </select>
                     </label>
@@ -174,77 +163,6 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
     </section>
     <footer className="page-footer">Made for the long game <span>✳</span></footer>
   </>
-}
-
-function SkillStudyTypeahead({ application, onUpdateSkillStudyStatus }: {
-  application: Application
-  onUpdateSkillStudyStatus: (applicationId: string, skillName: string, needsNoStudy: boolean) => Promise<boolean>
-}) {
-  const [search, setSearch] = useState('')
-  const [activeSuggestion, setActiveSuggestion] = useState(0)
-  const [saving, setSaving] = useState(false)
-  const skills = application.skills ?? []
-  const uniqueSkills = Array.from(new Map(skills.map((skill) => [skill.name.trim().toLowerCase(), skill])).values())
-  const query = search.trim().toLowerCase()
-  const matches = uniqueSkills.filter((skill) => (
-    getSkillPriority(skill) !== NO_STUDY_PRIORITY && skill.name.toLowerCase().includes(query)
-  )).slice(0, 8)
-  const hasMatch = uniqueSkills.some((skill) => skill.name.toLowerCase().includes(query))
-  const listId = `study-skill-suggestions-${application.id}`
-
-  async function selectSkill(skillName: string) {
-    setSaving(true)
-    const saved = await onUpdateSkillStudyStatus(application.id, skillName, true)
-    setSaving(false)
-    if (saved) {
-      setSearch('')
-      setActiveSuggestion(0)
-    }
-  }
-
-  return <div className="skill-study-typeahead">
-    <label className="field">
-      <span>Mark a saved skill as not needing study</span>
-      <input
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={Boolean(query && matches.length)}
-        aria-controls={query && matches.length ? listId : undefined}
-        aria-activedescendant={query && matches.length ? `${listId}-${activeSuggestion}` : undefined}
-        value={search}
-        disabled={saving}
-        onChange={(event) => { setSearch(event.target.value); setActiveSuggestion(0) }}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            setSearch('')
-            setActiveSuggestion(0)
-          } else if (query && matches.length && event.key === 'ArrowDown') {
-            event.preventDefault()
-            setActiveSuggestion((current) => (current + 1) % matches.length)
-          } else if (query && matches.length && event.key === 'ArrowUp') {
-            event.preventDefault()
-            setActiveSuggestion((current) => (current - 1 + matches.length) % matches.length)
-          } else if (query && matches.length && event.key === 'Enter') {
-            event.preventDefault()
-            void selectSkill(matches[activeSuggestion]?.name ?? matches[0].name)
-          }
-        }}
-        placeholder="Type a skill name"
-      />
-    </label>
-    {query && matches.length > 0 && <div className="skill-study-suggestions" id={listId} role="listbox" aria-label="Matching skills">
-      {matches.map((skill, index) => <button
-        id={`${listId}-${index}`}
-        key={skill.name}
-        type="button"
-        role="option"
-        aria-selected={index === activeSuggestion}
-        onMouseEnter={() => setActiveSuggestion(index)}
-        onClick={() => void selectSkill(skill.name)}
-      >{skill.name}</button>)}
-    </div>}
-    {query && matches.length === 0 && <p className="skill-study-no-match" role="status">{hasMatch ? 'All matching skills are already marked as not needing study.' : 'No matching skills in this application.'}</p>}
-  </div>
 }
 
 function SkillStat({ label, value, caption }: { label: string; value: number; caption: string }) {

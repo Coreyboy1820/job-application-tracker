@@ -21,7 +21,7 @@ import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { loadApplications as loadLocalApplications } from './storage'
 import type { Application, ComfortRating, Interview, JobSkill, Status } from './types'
-import { getSkillPriority, NO_STUDY_PRIORITY, withComfortRating, withNoStudyStatus } from './skillPriority'
+import { getSkillPriority, NO_STUDY_PRIORITY, withComfortRating } from './skillPriority'
 import SkillsPage from './SkillsPage'
 import CompanyInterviewQuestionsPage from './CompanyInterviewQuestionsPage'
 import './cloud.css'
@@ -332,10 +332,11 @@ function App() {
           const savedSkill = application.skills?.find((item) =>
             item.name.trim().toLowerCase() === skill.name.trim().toLowerCase(),
           )
-          if (!savedSkill || (!savedSkill.needsNoStudy && savedSkill.priority === undefined)) return skill
+          if (!savedSkill || (!savedSkill.needsNoStudy && savedSkill.priority === undefined && savedSkill.comfortRating === undefined)) return skill
           const priority = getSkillPriority(savedSkill)
           return {
             ...skill,
+            comfortRating: savedSkill.comfortRating,
             needsNoStudy: priority === NO_STUDY_PRIORITY,
             priority,
           }
@@ -467,10 +468,6 @@ function App() {
     return true
   }
 
-  async function updateSkillStudyStatus(id: string, skillName: string, needsNoStudy: boolean): Promise<boolean> {
-    return updateSkill(id, skillName, (skill) => withNoStudyStatus(skill, needsNoStudy), 'Could not update skill study status')
-  }
-
   async function updateSkillComfortRating(id: string, skillName: string, comfortRating: ComfortRating): Promise<boolean> {
     return updateSkill(id, skillName, (skill) => withComfortRating(skill, comfortRating), 'Could not update skill comfort level')
   }
@@ -581,7 +578,7 @@ function App() {
         {error && <div className="storage-message storage-error" role="alert">{error}</div>}
         {notice && <div className="storage-message storage-notice" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={() => setNotice(null)}><X size={15} /></button></div>}
         {activePage === 'interviews' ? <UpcomingInterviewsPage interviews={upcomingInterviews} loading={dataLoading} onOpenApplicationSkills={openApplicationSkills} />
-          : activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} onUpdateSkillStudyStatus={updateSkillStudyStatus} onUpdateSkillComfortRating={updateSkillComfortRating} />
+          : activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} onUpdateSkillComfortRating={updateSkillComfortRating} />
           : activePage === 'company-questions' && activeCompany
             ? <CompanyInterviewQuestionsPage company={activeCompany} applications={applications} onBack={() => navigateTo('skills')} />
             : <>

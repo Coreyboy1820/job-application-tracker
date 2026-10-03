@@ -78,9 +78,9 @@ describe('CompanyInterviewQuestionsPage', () => {
       role: 'No-study Engineer',
       skills: [
         { ...typeScript, needsNoStudy: true },
-        { ...typeScript, name: 'React', priority: 3 },
-        { ...typeScript, name: 'Angular', priority: 1 },
-        { ...typeScript, name: 'Go', priority: 2 },
+        { ...typeScript, name: 'React', comfortRating: 'high' },
+        { ...typeScript, name: 'Angular', comfortRating: 'low' },
+        { ...typeScript, name: 'Go', comfortRating: 'medium' },
       ],
     })
     render(<CompanyInterviewQuestionsPage company="Acme" applications={[application]} onBack={vi.fn()} />)
@@ -95,19 +95,19 @@ describe('CompanyInterviewQuestionsPage', () => {
   it('orders company practice questions by comfort rating and keeps no-study skills last', () => {
     const application = createApplication({
       skills: [
-        { ...typeScript, name: 'No study', comfortRating: 'dont-need-to-study' },
-        { ...typeScript, name: 'Very comfortable', comfortRating: 'very-comfortable' },
-        { ...typeScript, name: 'Needs practice', comfortRating: 'need-practice' },
-        { ...typeScript, name: 'Unfamiliar', comfortRating: 'dont-know-at-all' },
+        { ...typeScript, name: 'No study', comfortRating: 'no-study-needed' },
+        { ...typeScript, name: 'High', comfortRating: 'high' },
+        { ...typeScript, name: 'Medium', comfortRating: 'medium' },
+        { ...typeScript, name: 'Low', comfortRating: 'low' },
       ],
     })
     render(<CompanyInterviewQuestionsPage company="Acme" applications={[application]} onBack={vi.fn()} />)
 
     const skillNames = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
-    expect(skillNames).toEqual(['Unfamiliar', 'Needs practice', 'Very comfortable', 'No study'])
+    expect(skillNames).toEqual(['Low', 'Medium', 'High', 'No study'])
   })
 
-  it('keeps a grouped skill active when another role still needs to study it', () => {
+  it('keeps a grouped skill active when another role still needs study', () => {
     const noStudyApplication = createApplication({
       role: 'No-study Engineer',
       skills: [{ ...typeScript, interviewQuestions: [], needsNoStudy: true, priority: 0 }],
@@ -115,7 +115,7 @@ describe('CompanyInterviewQuestionsPage', () => {
     const activeApplication = createApplication({
       id: 'application-2',
       role: 'Frontend Engineer',
-      skills: [{ ...typeScript, priority: 2 }],
+      skills: [{ ...typeScript, comfortRating: 'medium' }],
     })
     render(<CompanyInterviewQuestionsPage company="Acme" applications={[noStudyApplication, activeApplication]} onBack={vi.fn()} />)
 
