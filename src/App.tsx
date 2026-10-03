@@ -19,7 +19,7 @@ import {
 import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { loadApplications as loadLocalApplications } from './storage'
-import type { Application, JobSkill, Status } from './types'
+import type { Application, Interview, JobSkill, Status } from './types'
 import SkillsPage from './SkillsPage'
 import CompanyInterviewQuestionsPage from './CompanyInterviewQuestionsPage'
 import './cloud.css'
@@ -40,10 +40,11 @@ type ApplicationRow = {
   skills_analyzed_at: string | null
   skills_source_url: string
   interview_questions_version: number
+  interviews: Interview[]
 }
 
 const statuses: Status[] = ['Interested', 'Applied', 'Interviewing', 'Offer', 'Rejected']
-const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step, job_description, skills, skills_analyzed_at, skills_source_url, interview_questions_version'
+const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step, job_description, skills, skills_analyzed_at, skills_source_url, interview_questions_version, interviews'
 
 function fromRow(row: ApplicationRow): Application {
   return {
@@ -61,6 +62,7 @@ function fromRow(row: ApplicationRow): Application {
     skillsAnalyzedAt: row.skills_analyzed_at,
     skillsSourceUrl: row.skills_source_url,
     interviewQuestionsVersion: row.interview_questions_version,
+    interviews: row.interviews ?? [],
   }
 }
 
@@ -81,7 +83,18 @@ function toRow(application: Application, userId: string) {
     skills_analyzed_at: application.skillsAnalyzedAt ?? null,
     skills_source_url: application.skillsSourceUrl ?? '',
     interview_questions_version: application.interviewQuestionsVersion ?? 0,
+    interviews: application.interviews ?? [],
   }
+}
+
+function isInterview(value: unknown): value is Interview {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<Interview>
+  return typeof candidate.id === 'string'
+    && typeof candidate.date === 'string'
+    && typeof candidate.time === 'string'
+    && typeof candidate.notes === 'string'
+    && isValidInterviewDateTime(candidate.date, candidate.time)
 }
 
 // Keep the previous browser-only entries available so the user can copy them
@@ -107,6 +120,7 @@ async function readLegacyApplications(): Promise<Application[]> {
         url: typeof item.url === 'string' ? item.url : '',
         notes: typeof item.notes === 'string' ? item.notes : '',
         nextStep: typeof item.nextStep === 'string' ? item.nextStep : '',
+        interviews: Array.isArray(item.interviews) ? item.interviews.filter(isInterview) : [],
       }]
     })
   } catch {
@@ -126,6 +140,7 @@ function App() {
   const [search, setSearch] = useState('')
   const [sortNewest, setSortNewest] = useState(true)
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [interviewEditorApplicationId, setInterviewEditorApplicationId] = useState<string | null>(null)
   const [editingApplication, setEditingApplication] = useState<Application | null>(null)
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<{ id: string; state: 'loading' | 'error'; message?: string } | null>(null)
@@ -242,6 +257,7 @@ function App() {
   const offerCount = applications.filter((item) => item.status === 'Offer').length
   const userId = session?.user.id
   const selectedApplication = applications.find((item) => item.id === selectedApplicationId) ?? null
+  const interviewEditorApplication = applications.find((item) => item.id === interviewEditorApplicationId) ?? null
 
   useEffect(() => {
     if (!selectedApplication || !client) return
@@ -322,6 +338,27 @@ function App() {
     }
     const updated = fromRow(data as ApplicationRow)
     setApplications((current) => current.map((item) => item.id === id ? updated : item))
+  }
+
+  async function updateInterviews(id: string, interviews: Interview[]): Promise<string | null> {
+    if (!client) return 'Interview schedule cannot be saved because the database is unavailable.'
+    setError(null)
+    const { data, error: updateError } = await client
+      .from('applications')
+      .update({ interviews })
+      .eq('id', id)
+      .select(applicationColumns)
+      .single()
+
+    if (updateError) {
+      setError(`Could not save interview schedule: ${updateError.message}`)
+      return updateError.message
+    }
+
+    const updated = fromRow(data as ApplicationRow)
+    setApplications((current) => current.map((item) => item.id === id ? updated : item))
+    setInterviewEditorApplicationId(null)
+    return null
   }
 
   async function updateApplication(id: string, application: Omit<Application, 'id'>): Promise<boolean> {
@@ -487,6 +524,7 @@ function App() {
                 <td><StatusSelect status={application.status} onChange={(status) => void updateStatus(application.id, status)} /></td>
                 <td className="next-step-cell">{application.nextStep || <span className="muted-text">Add a reminder</span>}</td>
                 <td className="application-actions">
+                  <button className="row-menu" aria-label={`Manage interviews for ${application.role} at ${application.company}`} title="Manage interviews" onClick={() => setInterviewEditorApplicationId(application.id)}><CalendarDays size={15} /></button>
                   <button className="row-menu edit-application-button" aria-label={`Edit ${application.role} at ${application.company}`} title="Edit application" onClick={() => { setEditingApplication(application); setIsFormOpen(true) }}><Pencil size={15} /></button>
                   <button className="row-menu" aria-label={`Delete ${application.role} at ${application.company}`} title="Delete application" onClick={() => void deleteApplication(application.id)}><X size={16} /></button>
                 </td>
@@ -500,6 +538,12 @@ function App() {
       </main>
 
       {isFormOpen && <ApplicationModal key={editingApplication?.id ?? 'new'} application={editingApplication} onClose={() => { setIsFormOpen(false); setEditingApplication(null) }} onSave={(application) => editingApplication ? updateApplication(editingApplication.id, application) : addApplication(application)} />}
+      {interviewEditorApplication && <InterviewModal
+        key={interviewEditorApplication.id}
+        application={interviewEditorApplication}
+        onClose={() => setInterviewEditorApplicationId(null)}
+        onSave={updateInterviews}
+      />}
       {selectedApplication && <ApplicationDetailView
         key={selectedApplication.id}
         application={selectedApplication}
@@ -586,6 +630,120 @@ function ApplicationModal({ application, onClose, onSave }: { application: Appli
   </form></section></div>
 }
 
+function InterviewModal({ application, onClose, onSave }: {
+  application: Application
+  onClose: () => void
+  onSave: (applicationId: string, interviews: Interview[]) => Promise<string | null>
+}) {
+  const [interviews, setInterviews] = useState<Interview[]>(application.interviews ?? [])
+  const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
+  const [notes, setNotes] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  function resetForm() {
+    setDate('')
+    setTime('')
+    setNotes('')
+    setEditingId(null)
+    setError(null)
+  }
+
+  function submitInterview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!isValidInterviewDateTime(date, time)) {
+      setError('Please choose a valid interview date and start time.')
+      return
+    }
+
+    const interview: Interview = {
+      id: editingId ?? crypto.randomUUID(),
+      date,
+      time,
+      notes: notes.trim(),
+    }
+    setInterviews((current) => editingId
+      ? current.map((item) => item.id === editingId ? interview : item)
+      : [...current, interview])
+    resetForm()
+  }
+
+  function editInterview(interview: Interview) {
+    setEditingId(interview.id)
+    setDate(interview.date)
+    setTime(interview.time)
+    setNotes(interview.notes)
+    setError(null)
+  }
+
+  async function saveSchedule() {
+    if (editingId || date || time || notes.trim()) {
+      setError('Add or update the interview draft before saving the schedule.')
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+    const saveError = await onSave(application.id, interviews)
+    setSaving(false)
+    if (saveError) setError(`Could not save interview schedule: ${saveError}`)
+    else onClose()
+  }
+
+  const sortedInterviews = [...interviews].sort((a, b) => getInterviewTimestamp(a) - getInterviewTimestamp(b))
+
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose() }}>
+    <section className="modal" role="dialog" aria-modal="true" aria-labelledby="interview-modal-title">
+      <header className="modal-header">
+        <div><div className="eyebrow">INTERVIEW SCHEDULE</div><h2 id="interview-modal-title">{application.company} — {application.role}</h2></div>
+        <button className="icon-button" aria-label="Close" onClick={onClose} disabled={saving}><X size={18} /></button>
+      </header>
+
+      <div style={{ display: 'grid', gap: '16px' }}>
+        <div style={{ display: 'grid', gap: '8px' }}>
+          {sortedInterviews.length === 0
+            ? <p className="muted-text" style={{ margin: 0 }}>No interviews scheduled yet.</p>
+            : sortedInterviews.map((interview) => (
+              <div key={interview.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', background: '#faf9ff', border: '1px solid #e8e5f8', borderRadius: '8px', padding: '10px 12px' }}>
+                <div>
+                  <strong>{formatInterviewDateTime(interview.date, interview.time)}</strong>
+                  {interview.notes && <div style={{ fontSize: '11px', color: '#6e7082', marginTop: '3px' }}>{interview.notes}</div>}
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flex: 'none' }}>
+                  <button type="button" className="text-button" onClick={() => editInterview(interview)} disabled={saving}>Edit</button>
+                  <button type="button" className="text-button danger" onClick={() => {
+                    setInterviews((current) => current.filter((item) => item.id !== interview.id))
+                    if (editingId === interview.id) resetForm()
+                  }} disabled={saving}>Delete</button>
+                </div>
+              </div>
+            ))}
+        </div>
+
+        <form onSubmit={submitInterview} style={{ display: 'grid', gap: '12px' }}>
+          {error && <div className="storage-message storage-error" role="alert">{error}</div>}
+          <div className="form-grid">
+            <label className="field"><span>Date <i>*</i></span><input type="date" required value={date} onChange={(event) => setDate(event.target.value)} disabled={saving} /></label>
+            <label className="field"><span>Start time <i>*</i></span><input type="time" required value={time} onChange={(event) => setTime(event.target.value)} disabled={saving} /></label>
+            <label className="field field-full"><span>Notes</span><textarea rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional context for this round" disabled={saving} /></label>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="text-button" onClick={resetForm} disabled={saving || (!date && !time && !notes && !editingId)}>Clear</button>
+            <button className="primary-button" type="submit" disabled={saving}>{editingId ? 'Update interview' : 'Add interview'}</button>
+          </div>
+        </form>
+      </div>
+
+      <div className="modal-actions" style={{ marginTop: '18px' }}>
+        <button type="button" className="text-button" onClick={onClose} disabled={saving}>Cancel</button>
+        <button className="primary-button" type="button" onClick={() => void saveSchedule()} disabled={saving}>{saving ? 'Saving…' : 'Save schedule'}</button>
+      </div>
+    </section>
+  </div>
+}
+
 function ApplicationDetailView({ application, analysis, onClose, onRetry, onUpdateUrl, onViewSkills }: {
   application: Application
   analysis: { state: 'loading' | 'error'; message?: string } | null
@@ -645,6 +803,35 @@ function readRouteFromHash(): { page: 'applications' | 'skills' | 'company-quest
   return window.location.hash === '#/skills'
     ? { page: 'skills', company: null }
     : { page: 'applications', company: null }
+}
+
+function getInterviewTimestamp(interview: Pick<Interview, 'date' | 'time'>) {
+  return new Date(`${interview.date}T${interview.time}`).getTime()
+}
+
+function isValidInterviewDateTime(date: string, time: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(time)
+  if (!match || !timeMatch) return false
+  const parsedDate = new Date(`${date}T${time}`)
+  return Number.isFinite(parsedDate.getTime())
+    && parsedDate.getFullYear() === Number(match[1])
+    && parsedDate.getMonth() + 1 === Number(match[2])
+    && parsedDate.getDate() === Number(match[3])
+    && parsedDate.getHours() === Number(timeMatch[1])
+    && parsedDate.getMinutes() === Number(timeMatch[2])
+}
+
+function formatInterviewDateTime(date: string, time: string) {
+  const timestamp = getInterviewTimestamp({ date, time })
+  if (!Number.isFinite(timestamp)) return 'Invalid date'
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(timestamp))
 }
 
 export default App

@@ -8,6 +8,13 @@ export type JobSkill = {
   interviewQuestions?: string[]
 }
 
+export type Interview = {
+  id: string
+  date: string
+  time: string
+  notes: string
+}
+
 export type Application = {
   id: string
   company: string
@@ -18,6 +25,7 @@ export type Application = {
   url: string
   notes: string
   nextStep: string
+  interviews?: Interview[]
   jobDescription?: string
   skills?: JobSkill[]
   skillsAnalyzedAt?: string | null
