@@ -132,6 +132,7 @@ function App() {
   const client = supabase
   const [activePage, setActivePage] = useState<'applications' | 'skills' | 'company-questions'>(() => readRouteFromHash().page)
   const [activeCompany, setActiveCompany] = useState<string | null>(() => readRouteFromHash().company)
+  const [activeSkillApplicationId, setActiveSkillApplicationId] = useState<string | null>(() => readRouteFromHash().applicationId)
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [applications, setApplications] = useState<Application[]>([])
@@ -155,6 +156,7 @@ function App() {
       const route = readRouteFromHash()
       setActivePage(route.page)
       setActiveCompany(route.company)
+      setActiveSkillApplicationId(route.applicationId)
     }
     window.addEventListener('hashchange', syncPageFromHash)
     return () => window.removeEventListener('hashchange', syncPageFromHash)
@@ -167,6 +169,15 @@ function App() {
     if (window.location.hash !== nextHash) window.location.hash = nextHash
     setActivePage(page)
     setActiveCompany(page === 'company-questions' && company ? company : null)
+    setActiveSkillApplicationId(null)
+  }
+
+  function openApplicationSkills(applicationId: string) {
+    const nextHash = `#/skills/application/${encodeURIComponent(applicationId)}`
+    if (window.location.hash !== nextHash) window.location.hash = nextHash
+    setActivePage('skills')
+    setActiveCompany(null)
+    setActiveSkillApplicationId(applicationId)
   }
 
   function openCompanyQuestions(company: string) {
@@ -490,7 +501,7 @@ function App() {
         <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> {activePage === 'applications' ? 'Applications' : activePage === 'company-questions' ? <>Skills <span>/</span> {activeCompany}</> : 'Skills'}</span><button className="sign-out-button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button></header>
         {error && <div className="storage-message storage-error" role="alert">{error}</div>}
         {notice && <div className="storage-message storage-notice" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={() => setNotice(null)}><X size={15} /></button></div>}
-        {activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} />
+        {activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} />
           : activePage === 'company-questions' && activeCompany
             ? <CompanyInterviewQuestionsPage company={activeCompany} applications={applications} onBack={() => navigateTo('skills')} />
             : <>
@@ -790,19 +801,28 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
 }
 
-function readRouteFromHash(): { page: 'applications' | 'skills' | 'company-questions'; company: string | null } {
+function readRouteFromHash(): { page: 'applications' | 'skills' | 'company-questions'; company: string | null; applicationId: string | null } {
+  const applicationRoute = '#/skills/application/'
+  if (window.location.hash.startsWith(applicationRoute)) {
+    try {
+      const applicationId = decodeURIComponent(window.location.hash.slice(applicationRoute.length)).trim()
+      if (applicationId) return { page: 'skills', company: null, applicationId }
+    } catch {
+      return { page: 'skills', company: null, applicationId: null }
+    }
+  }
   const companyRoute = '#/skills/company/'
   if (window.location.hash.startsWith(companyRoute)) {
     try {
       const company = decodeURIComponent(window.location.hash.slice(companyRoute.length)).trim()
-      if (company) return { page: 'company-questions', company }
+      if (company) return { page: 'company-questions', company, applicationId: null }
     } catch {
-      return { page: 'skills', company: null }
+      return { page: 'skills', company: null, applicationId: null }
     }
   }
   return window.location.hash === '#/skills'
-    ? { page: 'skills', company: null }
-    : { page: 'applications', company: null }
+    ? { page: 'skills', company: null, applicationId: null }
+    : { page: 'applications', company: null, applicationId: null }
 }
 
 function getInterviewTimestamp(interview: Pick<Interview, 'date' | 'time'>) {

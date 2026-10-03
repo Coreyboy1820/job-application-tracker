@@ -22,6 +22,8 @@ const preferredSkill: JobSkill = {
   evidence: 'Experience with React is preferred.',
 }
 
+const noop = vi.fn()
+
 function createApplication(overrides: Partial<Application> = {}): Application {
   return {
     id: 'application-1',
@@ -38,8 +40,27 @@ function createApplication(overrides: Partial<Application> = {}): Application {
 }
 
 describe('SkillsPage', () => {
+  function renderSkillsPage(applications: Application[], options: {
+    loading?: boolean
+    applicationFilterId?: string | null
+    onOpenApplication?: (id: string) => void
+    onOpenCompany?: (company: string) => void
+    onOpenApplicationSkills?: (id: string) => void
+    onClearApplicationFilter?: () => void
+  } = {}) {
+    return render(<SkillsPage
+      applications={applications}
+      loading={options.loading ?? false}
+      onOpenApplication={options.onOpenApplication ?? noop}
+      onOpenCompany={options.onOpenCompany ?? noop}
+      onOpenApplicationSkills={options.onOpenApplicationSkills ?? noop}
+      applicationFilterId={options.applicationFilterId ?? null}
+      onClearApplicationFilter={options.onClearApplicationFilter ?? noop}
+    />)
+  }
+
   it('shows loading feedback while applications are loading', () => {
-    render(<SkillsPage applications={[]} loading onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
+    renderSkillsPage([], { loading: true })
 
     expect(screen.getByText('Loading your skills…')).toBeTruthy()
   })
@@ -58,7 +79,7 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/2',
     })
-    render(<SkillsPage applications={[firstApplication, secondApplication]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
+    renderSkillsPage([firstApplication, secondApplication])
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse Acme skills' }))
 
@@ -76,7 +97,7 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/1',
     })
-    render(<SkillsPage applications={[application]} loading={false} onOpenApplication={onOpenApplication} onOpenCompany={vi.fn()} />)
+    renderSkillsPage([application], { onOpenApplication })
 
     fireEvent.click(screen.getByRole('button', { name: 'Open application' }))
 
@@ -84,12 +105,14 @@ describe('SkillsPage', () => {
   })
 
   it('opens company interview questions from the company name', () => {
-    const onOpenCompany = vi.fn()
-    render(<SkillsPage applications={[createApplication()]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={onOpenCompany} />)
+    const onOpenApplicationSkills = vi.fn()
+    renderSkillsPage([createApplication()], { onOpenApplicationSkills })
 
-    fireEvent.click(screen.getByRole('link', { name: 'Acme' }))
+    const companyLink = screen.getByRole('link', { name: 'Acme' })
+    expect(companyLink.getAttribute('href')).toBe('#/skills/application/application-1')
+    fireEvent.click(companyLink)
 
-    expect(onOpenCompany).toHaveBeenCalledWith('Acme')
+    expect(onOpenApplicationSkills).toHaveBeenCalledWith('application-1')
   })
 
   it('shows the saved interview questions for a repeated skill across applications', () => {
@@ -107,7 +130,7 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/2',
     })
-    render(<SkillsPage applications={[application, anotherApplication]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
+    renderSkillsPage([application, anotherApplication])
 
     const [firstSkill] = screen.getAllByRole('button', { name: /TypeScript/ })
     fireEvent.click(firstSkill)
@@ -126,7 +149,7 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/1',
     })
-    render(<SkillsPage applications={[application]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
+    renderSkillsPage([application])
 
     fireEvent.click(screen.getByRole('button', { name: /TypeScript/ }))
 
@@ -148,7 +171,7 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/1',
     })
-    render(<SkillsPage applications={[requiredApplication, preferredApplication]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
+    renderSkillsPage([requiredApplication, preferredApplication])
 
     fireEvent.click(screen.getByRole('button', { name: 'Required' }))
 
@@ -162,11 +185,39 @@ describe('SkillsPage', () => {
       skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
       skillsSourceUrl: 'https://example.com/jobs/old',
     })
-    render(<SkillsPage applications={[application]} loading={false} onOpenApplication={vi.fn()} onOpenCompany={vi.fn()} />)
+    renderSkillsPage([application])
 
     expect(screen.getByText('0 unique skills')).toBeTruthy()
     const jobsAnalyzedStat = screen.getByText('Jobs analyzed').closest('article')
     expect(jobsAnalyzedStat?.querySelector('.stat-value')?.textContent).toBe('0')
     expect(screen.getByRole('button', { name: 'Analyze posting' })).toBeTruthy()
+  })
+
+  it('filters to one application and provides a way to show all skills again', () => {
+    const onClearApplicationFilter = vi.fn()
+    const requiredApplication = createApplication({
+      skills: [requiredSkill],
+      skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/1',
+    })
+    const otherApplication = createApplication({
+      id: 'application-2',
+      company: 'Globex',
+      skills: [preferredSkill],
+      skillsAnalyzedAt: '2026-01-17T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/1',
+    })
+    renderSkillsPage([requiredApplication, otherApplication], {
+      applicationFilterId: 'application-1',
+      onClearApplicationFilter,
+    })
+
+    expect(screen.getByRole('status').textContent).toContain('Filtered to Frontend Engineer at Acme')
+    expect(screen.getByRole('heading', { name: 'Acme' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Globex' })).toBeNull()
+    expect(screen.getByText((_, element) => element?.classList.contains('panel-footer') ?? false).textContent).toContain('Showing 1 of 1 applications')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show all skills' }))
+    expect(onClearApplicationFilter).toHaveBeenCalledOnce()
   })
 })
