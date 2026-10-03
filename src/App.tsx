@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import {
+  ArrowRight,
   ArrowDownUp,
   ArrowUpRight,
   BriefcaseBusiness,
@@ -20,6 +21,7 @@ import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { loadApplications as loadLocalApplications } from './storage'
 import type { Application, Interview, JobSkill, Status } from './types'
+import { DEFAULT_SKILL_PRIORITY, NO_STUDY_PRIORITY, getSkillPriority } from './skillPriority'
 import SkillsPage from './SkillsPage'
 import CompanyInterviewQuestionsPage from './CompanyInterviewQuestionsPage'
 import './cloud.css'
@@ -45,6 +47,15 @@ type ApplicationRow = {
 
 const statuses: Status[] = ['Interested', 'Applied', 'Interviewing', 'Offer', 'Rejected']
 const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step, job_description, skills, skills_analyzed_at, skills_source_url, interview_questions_version, interviews'
+type AppPage = 'applications' | 'interviews' | 'skills' | 'company-questions'
+
+type UpcomingInterview = Interview & {
+  applicationId: string
+  company: string
+  role: string
+  location: string
+  timestamp: number
+}
 
 function fromRow(row: ApplicationRow): Application {
   return {
@@ -130,12 +141,13 @@ async function readLegacyApplications(): Promise<Application[]> {
 
 function App() {
   const client = supabase
-  const [activePage, setActivePage] = useState<'applications' | 'skills' | 'company-questions'>(() => readRouteFromHash().page)
+  const [activePage, setActivePage] = useState<AppPage>(() => readRouteFromHash().page)
   const [activeCompany, setActiveCompany] = useState<string | null>(() => readRouteFromHash().company)
   const [activeSkillApplicationId, setActiveSkillApplicationId] = useState<string | null>(() => readRouteFromHash().applicationId)
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [applications, setApplications] = useState<Application[]>([])
+  const [agendaNow, setAgendaNow] = useState(() => Date.now())
   const [dataLoading, setDataLoading] = useState(false)
   const [activeStatus, setActiveStatus] = useState<Status | 'All'>('All')
   const [search, setSearch] = useState('')
@@ -162,8 +174,10 @@ function App() {
     return () => window.removeEventListener('hashchange', syncPageFromHash)
   }, [])
 
-  function navigateTo(page: 'applications' | 'skills' | 'company-questions', company?: string) {
-    const nextHash = page === 'company-questions' && company
+  function navigateTo(page: AppPage, company?: string) {
+    const nextHash = page === 'interviews'
+      ? '#/interviews'
+      : page === 'company-questions' && company
       ? `#/skills/company/${encodeURIComponent(company)}`
       : page === 'skills' || page === 'company-questions' ? '#/skills' : '#/applications'
     if (window.location.hash !== nextHash) window.location.hash = nextHash
@@ -266,9 +280,21 @@ function App() {
   const activeCount = applications.filter((item) => ['Applied', 'Interviewing'].includes(item.status)).length
   const interviewCount = applications.filter((item) => item.status === 'Interviewing').length
   const offerCount = applications.filter((item) => item.status === 'Offer').length
+  const upcomingInterviews = useMemo(() => getUpcomingInterviews(applications, agendaNow), [applications, agendaNow])
   const userId = session?.user.id
   const selectedApplication = applications.find((item) => item.id === selectedApplicationId) ?? null
   const interviewEditorApplication = applications.find((item) => item.id === interviewEditorApplicationId) ?? null
+
+  useEffect(() => {
+    const nextInterview = upcomingInterviews[0]
+    if (!nextInterview) return
+
+    const timeout = window.setTimeout(
+      () => setAgendaNow(Date.now()),
+      Math.min(2_147_483_647, Math.max(0, nextInterview.timestamp - Date.now())),
+    )
+    return () => window.clearTimeout(timeout)
+  }, [upcomingInterviews])
 
   useEffect(() => {
     if (!selectedApplication || !client) return
@@ -302,7 +328,18 @@ function App() {
       setApplications((current) => current.map((item) => item.id === application.id ? {
         ...item,
         jobDescription: result.jobDescription,
-        skills: result.skills,
+        skills: result.skills.map((skill) => {
+          const savedSkill = application.skills?.find((item) =>
+            item.name.trim().toLowerCase() === skill.name.trim().toLowerCase(),
+          )
+          if (!savedSkill || (!savedSkill.needsNoStudy && savedSkill.priority === undefined)) return skill
+          const priority = getSkillPriority(savedSkill)
+          return {
+            ...skill,
+            needsNoStudy: priority === NO_STUDY_PRIORITY,
+            priority,
+          }
+        }),
         skillsAnalyzedAt: result.analyzedAt,
         skillsSourceUrl: result.sourceUrl,
         interviewQuestionsVersion: result.interviewQuestionsVersion,
@@ -430,6 +467,39 @@ function App() {
     return true
   }
 
+  async function updateSkillStudyStatus(id: string, skillName: string, needsNoStudy: boolean): Promise<boolean> {
+    if (!client) return false
+    const application = applications.find((item) => item.id === id)
+    if (!application) return false
+    const normalizedName = skillName.trim().toLowerCase()
+    const skills = (application.skills ?? []).map((skill) => (
+      skill.name.trim().toLowerCase() === normalizedName
+        ? { ...skill, needsNoStudy, priority: needsNoStudy ? NO_STUDY_PRIORITY : DEFAULT_SKILL_PRIORITY }
+        : skill
+    ))
+    if (!skills.some((skill) => skill.name.trim().toLowerCase() === normalizedName)) return false
+
+    setError(null)
+    try {
+      const { data, error: updateError } = await client.from('applications')
+        .update({ skills })
+        .eq('id', id)
+        .select(applicationColumns)
+        .single()
+      if (updateError) {
+        setError(`Could not update skill study status: ${updateError.message}`)
+        return false
+      }
+
+      const updated = fromRow(data as ApplicationRow)
+      setApplications((current) => current.map((item) => item.id === id ? updated : item))
+      return true
+    } catch (reason) {
+      setError(`Could not update skill study status: ${reason instanceof Error ? reason.message : 'An unexpected error occurred.'}`)
+      return false
+    }
+  }
+
   async function deleteApplication(id: string) {
     if (!client) return
     setError(null)
@@ -488,7 +558,8 @@ function App() {
         </a>
         <div className="workspace-label">WORKSPACE</div>
         <button type="button" className={`nav-item ${activePage === 'applications' ? 'nav-item-active' : ''}`} aria-current={activePage === 'applications' ? 'page' : undefined} onClick={() => navigateTo('applications')}><span className="nav-icon"><BriefcaseBusiness size={17} /></span> Applications <span className="nav-count">{applications.length}</span></button>
-        <button type="button" className={`nav-item ${activePage !== 'applications' ? 'nav-item-active' : ''}`} aria-current={activePage !== 'applications' ? 'page' : undefined} onClick={() => navigateTo('skills')}><span className="nav-icon"><Sparkles size={17} /></span> Skills <span className="nav-count">{applications.reduce((count, item) => count + (item.skillsAnalyzedAt && item.skillsSourceUrl === item.url ? item.skills?.length ?? 0 : 0), 0)}</span></button>
+        <button type="button" className={`nav-item ${activePage === 'interviews' ? 'nav-item-active' : ''}`} aria-current={activePage === 'interviews' ? 'page' : undefined} onClick={() => navigateTo('interviews')}><span className="nav-icon"><CalendarDays size={17} /></span> Interviews <span className="nav-count">{upcomingInterviews.length}</span></button>
+        <button type="button" className={`nav-item ${activePage === 'skills' || activePage === 'company-questions' ? 'nav-item-active' : ''}`} aria-current={activePage === 'skills' || activePage === 'company-questions' ? 'page' : undefined} onClick={() => navigateTo('skills')}><span className="nav-icon"><Sparkles size={17} /></span> Skills <span className="nav-count">{applications.reduce((count, item) => count + (item.skillsAnalyzedAt && item.skillsSourceUrl === item.url ? item.skills?.length ?? 0 : 0), 0)}</span></button>
         <div className="sidebar-note">
           <div className="note-icon"><CalendarDays size={16} /></div>
           <strong>One step at a time.</strong>
@@ -498,10 +569,11 @@ function App() {
       </aside>
 
       <main className="main-content" id="top">
-        <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> {activePage === 'applications' ? 'Applications' : activePage === 'company-questions' ? <>Skills <span>/</span> {activeCompany}</> : 'Skills'}</span><button className="sign-out-button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button></header>
+        <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> {activePage === 'applications' ? 'Applications' : activePage === 'interviews' ? 'Interviews' : activePage === 'company-questions' ? <>Skills <span>/</span> {activeCompany}</> : 'Skills'}</span><button className="sign-out-button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button></header>
         {error && <div className="storage-message storage-error" role="alert">{error}</div>}
         {notice && <div className="storage-message storage-notice" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={() => setNotice(null)}><X size={15} /></button></div>}
-        {activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} />
+        {activePage === 'interviews' ? <UpcomingInterviewsPage interviews={upcomingInterviews} loading={dataLoading} onOpenApplicationSkills={openApplicationSkills} />
+          : activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} onUpdateSkillStudyStatus={updateSkillStudyStatus} />
           : activePage === 'company-questions' && activeCompany
             ? <CompanyInterviewQuestionsPage company={activeCompany} applications={applications} onBack={() => navigateTo('skills')} />
             : <>
@@ -566,6 +638,46 @@ function App() {
       />}
     </div>
   )
+}
+
+function UpcomingInterviewsPage({
+  interviews,
+  loading,
+  onOpenApplicationSkills,
+}: {
+  interviews: UpcomingInterview[]
+  loading: boolean
+  onOpenApplicationSkills: (id: string) => void
+}) {
+  return <>
+    <section className="page-heading">
+      <div><div className="eyebrow">YOUR SCHEDULE</div><h1>Upcoming interviews</h1><p className="page-subtitle">Your next conversations, in date and time order.</p></div>
+    </section>
+    <section className="list-panel upcoming-interviews-panel">
+      <div className="panel-heading"><div><h2>Interview agenda</h2><p>Open an interview to view skills for its application.</p></div><span className="cloud-badge">{interviews.length} upcoming</span></div>
+      {loading ? <div className="empty-state"><p>Loading your interviews…</p></div> : interviews.length > 0 ? (
+        <div className="upcoming-interview-list">
+          {interviews.map((interview) => (
+            <button
+              type="button"
+              className="upcoming-interview"
+              key={`${interview.applicationId}-${interview.id}`}
+              onClick={() => onOpenApplicationSkills(interview.applicationId)}
+              aria-label={`View skills for ${interview.role} at ${interview.company}`}
+            >
+              <span className="upcoming-interview-date"><CalendarDays size={17} /><time dateTime={`${interview.date}T${interview.time}`}>{formatInterviewDateTime(interview.date, interview.time)}</time></span>
+              <span className="upcoming-interview-details">
+                <strong>{interview.company}</strong>
+                <span>{interview.role}{interview.location ? ` · ${interview.location}` : ''}</span>
+                {interview.notes && <span className="upcoming-interview-notes">{interview.notes}</span>}
+              </span>
+              <ArrowRight size={16} className="upcoming-interview-arrow" />
+            </button>
+          ))}
+        </div>
+      ) : <div className="empty-state"><p>{loading ? 'Loading your interviews…' : 'No upcoming interviews. Schedule one from an application to see it here.'}</p></div>}
+    </section>
+  </>
 }
 
 function SetupRequired() {
@@ -801,7 +913,8 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
 }
 
-function readRouteFromHash(): { page: 'applications' | 'skills' | 'company-questions'; company: string | null; applicationId: string | null } {
+function readRouteFromHash(): { page: AppPage; company: string | null; applicationId: string | null } {
+  if (window.location.hash === '#/interviews') return { page: 'interviews', company: null, applicationId: null }
   const applicationRoute = '#/skills/application/'
   if (window.location.hash.startsWith(applicationRoute)) {
     try {
@@ -827,6 +940,20 @@ function readRouteFromHash(): { page: 'applications' | 'skills' | 'company-quest
 
 function getInterviewTimestamp(interview: Pick<Interview, 'date' | 'time'>) {
   return new Date(`${interview.date}T${interview.time}`).getTime()
+}
+
+function getUpcomingInterviews(applications: Application[], now: number): UpcomingInterview[] {
+  return applications.flatMap((application) => (application.interviews ?? [])
+    .map((interview) => ({
+      ...interview,
+      applicationId: application.id,
+      company: application.company,
+      role: application.role,
+      location: application.location,
+      timestamp: getInterviewTimestamp(interview),
+    }))
+    .filter((interview) => isValidInterviewDateTime(interview.date, interview.time) && interview.timestamp >= now))
+    .sort((a, b) => a.timestamp - b.timestamp)
 }
 
 function isValidInterviewDateTime(date: string, time: string) {

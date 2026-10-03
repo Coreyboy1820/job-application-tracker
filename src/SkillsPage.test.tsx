@@ -47,6 +47,7 @@ describe('SkillsPage', () => {
     onOpenCompany?: (company: string) => void
     onOpenApplicationSkills?: (id: string) => void
     onClearApplicationFilter?: () => void
+    onUpdateSkillStudyStatus?: (applicationId: string, skillName: string, needsNoStudy: boolean) => Promise<boolean>
   } = {}) {
     return render(<SkillsPage
       applications={applications}
@@ -56,6 +57,7 @@ describe('SkillsPage', () => {
       onOpenApplicationSkills={options.onOpenApplicationSkills ?? noop}
       applicationFilterId={options.applicationFilterId ?? null}
       onClearApplicationFilter={options.onClearApplicationFilter ?? noop}
+      onUpdateSkillStudyStatus={options.onUpdateSkillStudyStatus ?? (async () => true)}
     />)
   }
 
@@ -104,14 +106,17 @@ describe('SkillsPage', () => {
     expect(onOpenApplication).toHaveBeenCalledWith('application-1')
   })
 
-  it('opens company interview questions from the company name', () => {
+  it('opens company interview questions from the company name and keeps application skills accessible', () => {
+    const onOpenCompany = vi.fn()
     const onOpenApplicationSkills = vi.fn()
-    renderSkillsPage([createApplication()], { onOpenApplicationSkills })
+    renderSkillsPage([createApplication()], { onOpenCompany, onOpenApplicationSkills })
 
     const companyLink = screen.getByRole('link', { name: 'Acme' })
-    expect(companyLink.getAttribute('href')).toBe('#/skills/application/application-1')
+    expect(companyLink.getAttribute('href')).toBe('#/skills/company/Acme')
     fireEvent.click(companyLink)
 
+    expect(onOpenCompany).toHaveBeenCalledWith('Acme')
+    fireEvent.click(screen.getByRole('button', { name: 'View skills' }))
     expect(onOpenApplicationSkills).toHaveBeenCalledWith('application-1')
   })
 
@@ -141,6 +146,41 @@ describe('SkillsPage', () => {
     fireEvent.click(secondSkill)
 
     expect(screen.getByText('How do you use TypeScript to prevent runtime errors?')).toBeTruthy()
+  })
+
+  it('suggests saved skills per application and persists a selected no-study flag', async () => {
+    const onUpdateSkillStudyStatus = vi.fn(async () => true)
+    const application = createApplication({
+      skills: [requiredSkill, preferredSkill],
+      skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/1',
+    })
+    renderSkillsPage([application], { onUpdateSkillStudyStatus })
+
+    const typeahead = screen.getByRole('combobox', { name: 'Mark a saved skill as not needing study' })
+    fireEvent.change(typeahead, { target: { value: 'Rea' } })
+    fireEvent.click(screen.getByRole('option', { name: 'React' }))
+
+    expect(onUpdateSkillStudyStatus).toHaveBeenCalledWith('application-1', 'React', true)
+  })
+
+  it('offers unflagging and explains when all matching skills are already marked', () => {
+    const onUpdateSkillStudyStatus = vi.fn(async () => true)
+    const application = createApplication({
+      skills: [{ ...requiredSkill, needsNoStudy: true }],
+      skillsAnalyzedAt: '2026-01-16T12:00:00.000Z',
+      skillsSourceUrl: 'https://example.com/jobs/1',
+    })
+    renderSkillsPage([application], { onUpdateSkillStudyStatus })
+
+    const skillCard = screen.getByRole('button', { name: /TypeScript/ }).closest('.analyzed-skill')
+    expect(skillCard?.classList.contains('analyzed-skill-no-study')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as needing study' }))
+    expect(onUpdateSkillStudyStatus).toHaveBeenCalledWith('application-1', 'TypeScript', false)
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Mark a saved skill as not needing study' }), { target: { value: 'TypeScript' } })
+    expect(screen.queryByRole('option', { name: 'TypeScript' })).toBeNull()
+    expect(screen.getByRole('status').textContent).toContain('All matching skills are already marked as not needing study.')
   })
 
   it('explains how to generate interview questions for older saved analyses', () => {
