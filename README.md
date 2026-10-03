@@ -39,6 +39,7 @@ The **CI / Build and test** check runs on pull requests targeting `main` and pus
 - Create an account or sign in with email and password.
 - Add an application with its company, role, status, date, posting link, notes, and next step.
 - Schedule, edit, and remove multiple interview rounds for each application.
+- View upcoming interviews in chronological order from the Interviews page; open any interview to return to its application.
 - Search, filter, sort, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
 - Click a company or role to open its details and analyze its saved job posting link. Rolecall reads the page, asks an AI model to identify stated skills, and saves the description, evidence, and skill list to that application. Results are cached for the link and reused when you open the application again. Use **View skills** in the details to go to the Skills page.
 - If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
