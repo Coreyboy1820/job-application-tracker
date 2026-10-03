@@ -74,3 +74,4 @@ The function only accepts public HTTPS posting links, limits downloaded pages to
 - `index.html` is the page Vite serves; React mounts into its `#root` element.
 
 Supabase Auth identifies the user. Every application row has a `user_id`; the database enforces ownership even if a browser client is modified. The publishable key is safe to include in the frontend only because the table grants and RLS policies are restrictive. User data is no longer written to local storage, aside from the one-time import marker and the legacy records kept for import.
+
