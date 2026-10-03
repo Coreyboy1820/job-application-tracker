@@ -56,7 +56,7 @@ describe('CompanyInterviewQuestionsPage', () => {
     const typescriptSection = screen.getByRole('heading', { name: 'TypeScript' }).closest('article')
     expect(typescriptSection).not.toBeNull()
     expect(within(typescriptSection as HTMLElement).getAllByRole('listitem')).toHaveLength(4)
-    expect(within(typescriptSection as HTMLElement).getByText('Roles: Frontend Engineer, Platform Engineer')).toBeTruthy()
+    expect(within(typescriptSection as HTMLElement).getByText('Roles: Frontend Engineer (1), Platform Engineer (1)')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'React' })).toBeTruthy()
     expect(screen.queryByText('Kubernetes')).toBeNull()
     expect(screen.queryByText(/Unrelated question/)).toBeNull()
@@ -73,13 +73,40 @@ describe('CompanyInterviewQuestionsPage', () => {
     expect(screen.getByRole('status').textContent).toContain('No interview questions available yet')
   })
 
-  it('crosses out a skill marked as not needing study', () => {
+  it('crosses out the whole skill card and sorts it after skills still needing study', () => {
     const application = createApplication({
-      skills: [{ ...typeScript, needsNoStudy: true }],
+      role: 'No-study Engineer',
+      skills: [
+        { ...typeScript, needsNoStudy: true },
+        { ...typeScript, name: 'React', priority: 3 },
+        { ...typeScript, name: 'Angular', priority: 1 },
+        { ...typeScript, name: 'Go', priority: 2 },
+      ],
     })
     render(<CompanyInterviewQuestionsPage company="Acme" applications={[application]} onBack={vi.fn()} />)
 
-    expect(screen.getByRole('heading', { name: 'TypeScript' }).parentElement?.parentElement?.classList.contains('company-skill-no-study')).toBe(true)
+    const skillCards = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.closest('article'))
+    expect(skillCards.map((card) => card?.querySelector('h3')?.textContent)).toEqual(['Angular', 'Go', 'React', 'TypeScript'])
+    expect(skillCards[1]?.classList.contains('company-skill-no-study')).toBe(false)
+    expect(skillCards[3]?.classList.contains('company-skill-no-study')).toBe(true)
+    expect(skillCards[3]?.textContent).toContain('No-study Engineer (0)')
+  })
+
+  it('keeps a grouped skill active when another role still needs to study it', () => {
+    const noStudyApplication = createApplication({
+      role: 'No-study Engineer',
+      skills: [{ ...typeScript, interviewQuestions: [], needsNoStudy: true, priority: 0 }],
+    })
+    const activeApplication = createApplication({
+      id: 'application-2',
+      role: 'Frontend Engineer',
+      skills: [{ ...typeScript, priority: 2 }],
+    })
+    render(<CompanyInterviewQuestionsPage company="Acme" applications={[noStudyApplication, activeApplication]} onBack={vi.fn()} />)
+
+    const skillCard = screen.getByRole('heading', { name: 'TypeScript' }).closest('article')
+    expect(skillCard?.classList.contains('company-skill-no-study')).toBe(false)
+    expect(within(skillCard as HTMLElement).getByText('Roles: No-study Engineer (0), Frontend Engineer (2)')).toBeTruthy()
   })
 
   it('returns to the Skills view from the back button', () => {

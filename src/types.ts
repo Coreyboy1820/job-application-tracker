@@ -7,6 +7,7 @@ export type JobSkill = {
   evidence: string
   interviewQuestions?: string[]
   needsNoStudy?: boolean
+  priority?: number
 }
 
 export type Interview = {

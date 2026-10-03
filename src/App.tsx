@@ -21,6 +21,7 @@ import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { loadApplications as loadLocalApplications } from './storage'
 import type { Application, Interview, JobSkill, Status } from './types'
+import { DEFAULT_SKILL_PRIORITY, NO_STUDY_PRIORITY, getSkillPriority } from './skillPriority'
 import SkillsPage from './SkillsPage'
 import CompanyInterviewQuestionsPage from './CompanyInterviewQuestionsPage'
 import './cloud.css'
@@ -327,11 +328,18 @@ function App() {
       setApplications((current) => current.map((item) => item.id === application.id ? {
         ...item,
         jobDescription: result.jobDescription,
-        skills: result.skills.map((skill) => (
-          application.skills?.some((savedSkill) =>
-            savedSkill.name.trim().toLowerCase() === skill.name.trim().toLowerCase() && savedSkill.needsNoStudy,
-          ) ? { ...skill, needsNoStudy: true } : skill
-        )),
+        skills: result.skills.map((skill) => {
+          const savedSkill = application.skills?.find((item) =>
+            item.name.trim().toLowerCase() === skill.name.trim().toLowerCase(),
+          )
+          if (!savedSkill || (!savedSkill.needsNoStudy && savedSkill.priority === undefined)) return skill
+          const priority = getSkillPriority(savedSkill)
+          return {
+            ...skill,
+            needsNoStudy: priority === NO_STUDY_PRIORITY,
+            priority,
+          }
+        }),
         skillsAnalyzedAt: result.analyzedAt,
         skillsSourceUrl: result.sourceUrl,
         interviewQuestionsVersion: result.interviewQuestionsVersion,
@@ -465,7 +473,9 @@ function App() {
     if (!application) return false
     const normalizedName = skillName.trim().toLowerCase()
     const skills = (application.skills ?? []).map((skill) => (
-      skill.name.trim().toLowerCase() === normalizedName ? { ...skill, needsNoStudy } : skill
+      skill.name.trim().toLowerCase() === normalizedName
+        ? { ...skill, needsNoStudy, priority: needsNoStudy ? NO_STUDY_PRIORITY : DEFAULT_SKILL_PRIORITY }
+        : skill
     ))
     if (!skills.some((skill) => skill.name.trim().toLowerCase() === normalizedName)) return false
 

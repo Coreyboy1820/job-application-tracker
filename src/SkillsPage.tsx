@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ArrowUpRight, BriefcaseBusiness, ChevronDown, Search, Sparkles } from 'lucide-react'
 import type { Application, JobSkill } from './types'
+import { NO_STUDY_PRIORITY, getSkillPriority } from './skillPriority'
 
 type ImportanceFilter = 'All' | JobSkill['importance']
 
@@ -117,7 +118,8 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
                   const isSelected = selectedSkill?.applicationId === application.id && selectedSkill.skillName === skill.name
                   const questionsId = `skill-questions-${application.id}-${index}`
                   const questions = skill.interviewQuestions ?? []
-                  return <article className={`analyzed-skill${skill.needsNoStudy ? ' analyzed-skill-no-study' : ''}`} key={`${skill.name}-${skill.evidence}`}>
+                  const needsNoStudy = getSkillPriority(skill) === NO_STUDY_PRIORITY
+                  return <article className={`analyzed-skill${needsNoStudy ? ' analyzed-skill-no-study' : ''}`} key={`${skill.name}-${skill.evidence}`}>
                     <button
                       type="button"
                       className="skill-practice-toggle"
@@ -133,10 +135,10 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
                     <button
                       type="button"
                       className="skill-study-status-button"
-                      aria-pressed={Boolean(skill.needsNoStudy)}
-                      onClick={() => void onUpdateSkillStudyStatus(application.id, skill.name, !skill.needsNoStudy)}
+                      aria-pressed={needsNoStudy}
+                      onClick={() => void onUpdateSkillStudyStatus(application.id, skill.name, !needsNoStudy)}
                     >
-                      {skill.needsNoStudy ? 'Mark as needing study' : 'Mark as not needing study'}
+                      {needsNoStudy ? 'Mark as needing study' : 'Mark as not needing study'}
                     </button>
                     {isSelected && <div className="skill-practice-questions" id={questionsId}>
                       <h4>Interview practice for {skill.name}</h4>
@@ -169,7 +171,7 @@ function SkillStudyTypeahead({ application, onUpdateSkillStudyStatus }: {
   const uniqueSkills = Array.from(new Map(skills.map((skill) => [skill.name.trim().toLowerCase(), skill])).values())
   const query = search.trim().toLowerCase()
   const matches = uniqueSkills.filter((skill) => (
-    !skill.needsNoStudy && skill.name.toLowerCase().includes(query)
+    getSkillPriority(skill) !== NO_STUDY_PRIORITY && skill.name.toLowerCase().includes(query)
   )).slice(0, 8)
   const hasMatch = uniqueSkills.some((skill) => skill.name.toLowerCase().includes(query))
   const listId = `study-skill-suggestions-${application.id}`
