@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
+import { SKILL_EXTRACTION_VERSION } from '../supabase/functions/analyze-job-posting/analysis-version'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { loadApplications as loadLocalApplications } from './storage'
 import type { Application, Interview, JobSkill, Status } from './types'
@@ -41,12 +42,13 @@ type ApplicationRow = {
   skills: JobSkill[]
   skills_analyzed_at: string | null
   skills_source_url: string
+  skill_extraction_version: number
   interview_questions_version: number
   interviews: Interview[]
 }
 
 const statuses: Status[] = ['Interested', 'Applied', 'Interviewing', 'Offer', 'Rejected']
-const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step, job_description, skills, skills_analyzed_at, skills_source_url, interview_questions_version, interviews'
+const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step, job_description, skills, skills_analyzed_at, skills_source_url, interview_questions_version, skill_extraction_version, interviews'
 type AppPage = 'applications' | 'interviews' | 'skills' | 'company-questions'
 
 type UpcomingInterview = Interview & {
@@ -73,6 +75,7 @@ function fromRow(row: ApplicationRow): Application {
     skillsAnalyzedAt: row.skills_analyzed_at,
     skillsSourceUrl: row.skills_source_url,
     interviewQuestionsVersion: row.interview_questions_version,
+    skillExtractionVersion: row.skill_extraction_version,
     interviews: row.interviews ?? [],
   }
 }
@@ -94,6 +97,7 @@ function toRow(application: Application, userId: string) {
     skills_analyzed_at: application.skillsAnalyzedAt ?? null,
     skills_source_url: application.skillsSourceUrl ?? '',
     interview_questions_version: application.interviewQuestionsVersion ?? 0,
+    skill_extraction_version: application.skillExtractionVersion ?? 0,
     interviews: application.interviews ?? [],
   }
 }
@@ -303,7 +307,7 @@ function App() {
       setAnalysis({ id: application.id, state: 'error', message: 'Add a job posting link to analyze this role.' })
       return
     }
-    if (application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && application.interviewQuestionsVersion === 1) {
+    if (application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && application.interviewQuestionsVersion === 1 && application.skillExtractionVersion === SKILL_EXTRACTION_VERSION) {
       setAnalysis(null)
       return
     }
@@ -324,7 +328,7 @@ function App() {
         setAnalysis({ id: application.id, state: 'error', message })
         return
       }
-      const result = data as { jobDescription: string; skills: JobSkill[]; analyzedAt: string; sourceUrl: string; interviewQuestionsVersion: number }
+      const result = data as { jobDescription: string; skills: JobSkill[]; analyzedAt: string; sourceUrl: string; interviewQuestionsVersion: number; skillExtractionVersion: number }
       setApplications((current) => current.map((item) => item.id === application.id ? {
         ...item,
         jobDescription: result.jobDescription,
@@ -343,13 +347,14 @@ function App() {
         skillsAnalyzedAt: result.analyzedAt,
         skillsSourceUrl: result.sourceUrl,
         interviewQuestionsVersion: result.interviewQuestionsVersion,
+        skillExtractionVersion: result.skillExtractionVersion,
       } : item))
       setAnalysis(null)
     }).catch((reason: unknown) => {
       if (active) setAnalysis({ id: application.id, state: 'error', message: reason instanceof Error ? reason.message : 'Could not analyze this posting.' })
     })
     return () => { active = false }
-  }, [client, selectedApplicationId, selectedApplication?.id, selectedApplication?.url, selectedApplication?.skillsAnalyzedAt, selectedApplication?.skillsSourceUrl, selectedApplication?.interviewQuestionsVersion, analysisAttempt])
+  }, [client, selectedApplicationId, selectedApplication?.id, selectedApplication?.url, selectedApplication?.skillsAnalyzedAt, selectedApplication?.skillsSourceUrl, selectedApplication?.interviewQuestionsVersion, selectedApplication?.skillExtractionVersion, analysisAttempt])
 
   async function addApplication(application: Omit<Application, 'id'>): Promise<boolean> {
     if (!client || !userId) return false
@@ -431,6 +436,7 @@ function App() {
           skills_analyzed_at: null,
           skills_source_url: '',
           interview_questions_version: 0,
+          skill_extraction_version: 0,
         } : {}),
       })
       .eq('id', id)
@@ -456,13 +462,14 @@ function App() {
       skills_analyzed_at: null,
       skills_source_url: '',
       interview_questions_version: 0,
+      skill_extraction_version: 0,
     }).eq('id', id)
     if (updateError) {
       setError(`Could not save the job posting link: ${updateError.message}`)
       return false
     }
     setApplications((current) => current.map((item) => item.id === id ? {
-      ...item, url, jobDescription: '', skills: [], skillsAnalyzedAt: null, skillsSourceUrl: '', interviewQuestionsVersion: 0,
+      ...item, url, jobDescription: '', skills: [], skillsAnalyzedAt: null, skillsSourceUrl: '', interviewQuestionsVersion: 0, skillExtractionVersion: 0,
     } : item))
     return true
   }

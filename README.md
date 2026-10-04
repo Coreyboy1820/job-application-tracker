@@ -54,6 +54,8 @@ npx supabase db push
 npx supabase functions deploy analyze-job-posting
 ```
 
+Grouped examples are saved as individual skills: debugging tools such as GDB, JTAG, and serial debuggers become GDB, JTAG, and serial debugging. Duplicate skills and redundant broad categories are removed; standalone skills without listed examples are retained. Older analyses are re-extracted from their saved description when next opened, preserving study settings for matching individual skills. Apply the migration before deploying the updated function.
+
 Gemini generates three general interview questions per normalized skill name. Those question sets are stored in an account-scoped cache and reused when the same skill appears in another application; existing saved analyses are refreshed once the next time the application is opened.
 
 You can also store `GEMINI_API_KEY=your-key` in an ignored `.env` file and run `npx supabase secrets set --env-file .env`. Keep that file private and out of Git.
