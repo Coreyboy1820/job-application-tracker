@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ChevronDown } from 'lucide-react'
 import type { Application, ComfortRating, JobSkill } from './types'
-import { NO_STUDY_PRIORITY, comfortRatings, getComfortRating, getComfortRatingPriority, getSkillPriority, isComfortRating } from './skillPriority'
+import { NO_STUDY_PRIORITY, comfortRatings, getComfortRatingPriority, getSkillPriority, isComfortRating } from './skillPriority'
 
 type SkillQuestionGroup = {
   name: string
@@ -9,7 +9,7 @@ type SkillQuestionGroup = {
   priority: number
   roles: Map<string, number>
   questions: Map<string, string>
-  applications: Map<string, { id: string; role: string; skillName: string; comfortRating: ComfortRating }>
+  applications: Map<string, { id: string; skillName: string }>
 }
 
 export default function CompanyInterviewQuestionsPage({ company, applications, onBack, onUpdateSkillComfortRating }: {
@@ -21,17 +21,24 @@ export default function CompanyInterviewQuestionsPage({ company, applications, o
   const groups = collectCompanyInterviewQuestions(applications, company)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [failedUpdate, setFailedUpdate] = useState<{ skillName: string; rating: ComfortRating } | null>(null)
 
-  async function updateKnowledgeLevel(applicationId: string, skillName: string, comfortRating: ComfortRating) {
+  async function updateKnowledgeLevel(group: SkillQuestionGroup, comfortRating: ComfortRating) {
     if (saving) return
     setSaving(true)
     setError(null)
+    setFailedUpdate(null)
     try {
-      if (!await onUpdateSkillComfortRating(applicationId, skillName, comfortRating)) {
-        setError('Could not save the knowledge level. Please try again.')
+      for (const application of group.applications.values()) {
+        if (!await onUpdateSkillComfortRating(application.id, application.skillName, comfortRating)) {
+          setError('Could not save the knowledge level for all roles. Please try again.')
+          setFailedUpdate({ skillName: group.name, rating: comfortRating })
+          break
+        }
       }
     } catch {
-      setError('Could not save the knowledge level. Please try again.')
+      setError('Could not save the knowledge level for all roles. Please try again.')
+      setFailedUpdate({ skillName: group.name, rating: comfortRating })
     } finally {
       setSaving(false)
     }
@@ -49,42 +56,38 @@ export default function CompanyInterviewQuestionsPage({ company, applications, o
 
     <section className="list-panel company-questions-panel" aria-label={`${company} interview questions`}>
       <div className="panel-heading"><div><h2>Questions by skill</h2><p>Questions are grouped across this company's analyzed applications.</p></div></div>
-      {error && <p className="auth-error" role="alert">{error}</p>}
+      {error && <p className="auth-error" role="alert">{error}
+        {failedUpdate && <button type="button" className="text-button" disabled={saving} onClick={() => {
+          const group = groups.find((item) => normalizeSkillName(item.name) === normalizeSkillName(failedUpdate.skillName))
+          if (group) void updateKnowledgeLevel(group, failedUpdate.rating)
+          else {
+            setError('This skill is no longer available.')
+            setFailedUpdate(null)
+          }
+        }}>Retry saving</button>}
+      </p>}
       {saving && <p className="company-skill-roles" role="status">Saving knowledge level…</p>}
       {groups.length
         ? <div className="company-questions-list">{groups.map((group) => <article className={`company-skill-questions${group.priority === NO_STUDY_PRIORITY ? ' company-skill-no-study' : ''}`} key={normalizeSkillName(group.name)}>
           <div className="company-skill-heading">
             <div><h3>{group.name}</h3><span className="analyzed-skill-meta">{group.category}</span></div>
-            <span className="company-skill-knowledge-level" title="Lowest knowledge level among roles still needing study; No study needed when all roles need no study.">
-              Knowledge level: {comfortRatings.find((rating) => getComfortRatingPriority(rating.value) === group.priority)?.label}
-            </span>
+            <label className="company-skill-knowledge-level" title="Change the knowledge level for all roles with this skill at this company.">
+              <span>Knowledge level:</span>
+              <select
+                className="company-skill-knowledge-select"
+                aria-label={`Knowledge level for ${group.name}`}
+                value={comfortRatings.find((rating) => getComfortRatingPriority(rating.value) === group.priority)?.value ?? 'low'}
+                disabled={saving}
+                onChange={(event) => {
+                  if (isComfortRating(event.target.value)) void updateKnowledgeLevel(group, event.target.value)
+                }}
+              >
+                {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
+              </select>
+              <ChevronDown size={11} aria-hidden="true" />
+            </label>
           </div>
           {group.roles.size > 0 && <p className="company-skill-roles">Roles: {[...group.roles].map(([role, priority]) => `${role} (${priority})`).join(', ')}</p>}
-          <div className="company-skill-knowledge-controls">
-            {[...group.applications.values()].map((application) => {
-              const sameRoleApplications = [...group.applications.values()].filter((item) =>
-                normalizeSkillName(item.role) === normalizeSkillName(application.role),
-              )
-              const roleLabel = `${application.role || 'Untitled role'}${sameRoleApplications.length > 1
-                ? ` (application ${sameRoleApplications.findIndex((item) => item.id === application.id) + 1})`
-                : ''}`
-              return <label className="skill-comfort-rating" key={application.id}>
-                <span>Knowledge level — {roleLabel}</span>
-                <select
-                  aria-label={`Knowledge level for ${group.name} in ${roleLabel}`}
-                  value={application.comfortRating}
-                  disabled={saving}
-                  onChange={(event) => {
-                    if (isComfortRating(event.target.value)) {
-                      void updateKnowledgeLevel(application.id, application.skillName, event.target.value)
-                    }
-                  }}
-                >
-                  {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
-                </select>
-              </label>
-            })}
-          </div>
           <ol>{[...group.questions.values()].map((question) => <li key={question}>{question}</li>)}</ol>
         </article>)}</div>
         : <div className="company-questions-empty" role="status">
@@ -113,9 +116,7 @@ export function collectCompanyInterviewQuestions(applications: Application[], co
       }
       group.applications.set(application.id, {
         id: application.id,
-        role: application.role,
         skillName: skill.name,
-        comfortRating: getComfortRating(skill),
       })
       const priority = getSkillPriority(skill)
       group.priority = combinePriorities(group.priority, priority)

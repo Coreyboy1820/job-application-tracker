@@ -56,12 +56,12 @@ describe('company knowledge-level persistence', () => {
 
   it('persists a company-view change and displays the returned knowledge level', async () => {
     render(<App />)
-    const selector = await screen.findByRole('combobox', { name: 'Knowledge level for TypeScript in Frontend Engineer' })
+    const selector = await screen.findByRole('combobox', { name: 'Knowledge level for TypeScript' })
     fireEvent.change(selector, { target: { value: 'no-study-needed' } })
 
     await waitFor(() => expect(supabaseMocks.update).toHaveBeenCalledWith({ skills: [{ ...skill, comfortRating: 'no-study-needed', needsNoStudy: true, priority: 0 }] }))
     await waitFor(() => expect((selector as HTMLSelectElement).value).toBe('no-study-needed'))
-    expect(screen.getByText('Knowledge level: No study needed')).toBeTruthy()
+    expect(screen.getByText('Knowledge level:')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'TypeScript' }).closest('article')?.classList.contains('company-skill-no-study')).toBe(true)
     expect(window.location.hash).toBe('#/skills/company/Acme')
   })

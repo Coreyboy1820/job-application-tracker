@@ -25,6 +25,6 @@
 
 .company-skill-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.company-skill-heading>div{min-width:0;overflow-wrap:anywhere}.company-skill-knowledge-level{flex-shrink:0;max-width:50%;padding:5px 8px;border-radius:6px;background:#f3f0ff;color:#6957d4;font-size:10px;font-weight:600;text-align:right}
 
-.company-skill-knowledge-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.company-skill-knowledge-controls .skill-comfort-rating{min-width:0;text-decoration:none}
+.company-skill-knowledge-level{display:inline-flex;align-items:center;gap:3px}.company-skill-knowledge-select{appearance:none;border:0;background:transparent;color:inherit;font:inherit;padding:0;min-width:0;max-width:100%;cursor:pointer}.company-skill-knowledge-select:focus-visible{outline:2px solid #7668cc;outline-offset:2px;border-radius:2px}.company-skill-knowledge-level svg{flex:none;pointer-events:none}
 
-.company-skill-no-study .company-skill-heading,.company-skill-no-study .company-skill-roles,.company-skill-no-study>ol{text-decoration:line-through}
+.company-skill-no-study .company-skill-heading>div,.company-skill-no-study .company-skill-roles,.company-skill-no-study>ol{text-decoration:line-through}

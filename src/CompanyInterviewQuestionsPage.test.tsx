@@ -90,8 +90,8 @@ describe('CompanyInterviewQuestionsPage', () => {
     expect(skillCards[1]?.classList.contains('company-skill-no-study')).toBe(false)
     expect(skillCards[3]?.classList.contains('company-skill-no-study')).toBe(true)
     expect(skillCards[3]?.textContent).toContain('No-study Engineer (0)')
-    expect(skillCards.map((card) => card?.querySelector('.company-skill-knowledge-level')?.textContent)).toEqual([
-      'Knowledge level: Low', 'Knowledge level: Medium', 'Knowledge level: High', 'Knowledge level: No study needed',
+    expect(skillCards.map((card) => (card?.querySelector('select') as HTMLSelectElement)?.value)).toEqual([
+      'low', 'medium', 'high', 'no-study-needed',
     ])
   })
 
@@ -125,36 +125,37 @@ describe('CompanyInterviewQuestionsPage', () => {
     const skillCard = screen.getByRole('heading', { name: 'TypeScript' }).closest('article')
     expect(skillCard?.classList.contains('company-skill-no-study')).toBe(false)
     expect(within(skillCard as HTMLElement).getByText('Roles: No-study Engineer (0), Frontend Engineer (2)')).toBeTruthy()
-    expect(within(skillCard as HTMLElement).getByText('Knowledge level: Medium')).toBeTruthy()
+    expect((within(skillCard as HTMLElement).getByRole('combobox') as HTMLSelectElement).value).toBe('medium')
   })
 
-  it('offers all knowledge levels for each eligible role and saves only the selected application', async () => {
+  it('offers all knowledge levels in the flag and saves every eligible application', async () => {
     const save = vi.fn().mockResolvedValue(true)
     const second = createApplication({ id: 'application-2', role: 'Platform Engineer', skills: [{ ...typeScript, name: ' typescript ', comfortRating: 'high' }] })
     const unrelated = createApplication({ id: 'application-3', company: 'Globex', role: 'Unrelated Engineer' })
     const stale = createApplication({ id: 'application-4', role: 'Stale Engineer', skillsSourceUrl: 'old-url' })
     render(<CompanyInterviewQuestionsPage company="Acme" applications={[createApplication(), second, unrelated, stale]} onBack={vi.fn()} onUpdateSkillComfortRating={save} />)
 
-    expect(screen.getAllByRole('combobox')).toHaveLength(2)
-    const selector = screen.getByRole('combobox', { name: 'Knowledge level for TypeScript in Platform Engineer' })
+    expect(screen.getAllByRole('combobox')).toHaveLength(1)
+    const selector = screen.getByRole('combobox', { name: 'Knowledge level for TypeScript' })
     expect(within(selector).getAllByRole('option').map((option) => option.textContent)).toEqual(['Low', 'Medium', 'High', 'No study needed'])
     for (const rating of ['low', 'medium', 'high', 'no-study-needed']) {
       fireEvent.change(selector, { target: { value: rating } })
       await waitFor(() => expect((selector as HTMLSelectElement).disabled).toBe(false))
+      expect(save).toHaveBeenNthCalledWith(save.mock.calls.length - 1, 'application-1', 'TypeScript', rating)
       expect(save).toHaveBeenLastCalledWith('application-2', ' typescript ', rating)
     }
-    expect(save).toHaveBeenCalledTimes(4)
-    expect((screen.getByRole('combobox', { name: 'Knowledge level for TypeScript in Frontend Engineer' }) as HTMLSelectElement).value).toBe('low')
+    expect(save).toHaveBeenCalledTimes(8)
+    expect((selector as HTMLSelectElement).value).toBe('low')
   })
 
-  it('distinguishes applications with the same role and updates the chosen one', async () => {
+  it('uses one flag for applications with the same role and updates both', async () => {
     const save = vi.fn().mockResolvedValue(true)
     render(<CompanyInterviewQuestionsPage company="Acme" applications={[createApplication(), createApplication({ id: 'application-2' })]} onBack={vi.fn()} onUpdateSkillComfortRating={save} />)
-    expect(screen.getByRole('combobox', { name: 'Knowledge level for TypeScript in Frontend Engineer (application 1)' })).toBeTruthy()
-    const second = screen.getByRole('combobox', { name: 'Knowledge level for TypeScript in Frontend Engineer (application 2)' })
-    fireEvent.change(second, { target: { value: 'high' } })
-    await waitFor(() => expect((second as HTMLSelectElement).disabled).toBe(false))
-    expect(save).toHaveBeenCalledExactlyOnceWith('application-2', 'TypeScript', 'high')
+    const selector = screen.getByRole('combobox', { name: 'Knowledge level for TypeScript' })
+    expect(screen.getAllByRole('combobox')).toHaveLength(1)
+    fireEvent.change(selector, { target: { value: 'high' } })
+    await waitFor(() => expect((selector as HTMLSelectElement).disabled).toBe(false))
+    expect(save.mock.calls).toEqual([['application-1', 'TypeScript', 'high'], ['application-2', 'TypeScript', 'high']])
   })
 
   it.each(['false', 'rejection'])('preserves saved values and permits retry after a %s result', async (failure) => {
@@ -166,7 +167,7 @@ describe('CompanyInterviewQuestionsPage', () => {
     const selector = screen.getByRole('combobox')
 
     fireEvent.change(selector, { target: { value: 'high' } })
-    expect((await screen.findByRole('alert')).textContent).toContain('Could not save the knowledge level. Please try again.')
+    expect((await screen.findByRole('alert')).textContent).toContain('Could not save the knowledge level for all roles. Please try again.')
     expect((selector as HTMLSelectElement).value).toBe('low')
     expect((selector as HTMLSelectElement).disabled).toBe(false)
     fireEvent.change(selector, { target: { value: 'medium' } })
@@ -176,6 +177,45 @@ describe('CompanyInterviewQuestionsPage', () => {
     expect(save).toHaveBeenCalledTimes(2)
   })
 
+  it('reflects actual saved group priority after a partial failure and retries remaining roles', async () => {
+    const first = createApplication({ skills: [{ ...typeScript, comfortRating: 'low' }] })
+    const second = createApplication({ id: 'application-2', role: 'Platform Engineer', skills: [{ ...typeScript, comfortRating: 'medium' }] })
+    const third = createApplication({ id: 'application-3', role: 'API Engineer', skills: [{ ...typeScript, comfortRating: 'high' }] })
+    const save = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false).mockResolvedValue(true)
+    const props = { company: 'Acme', applications: [first, second, third], onBack: vi.fn(), onUpdateSkillComfortRating: save }
+    const { rerender } = render(<CompanyInterviewQuestionsPage {...props} />)
+    const selector = screen.getByRole('combobox') as HTMLSelectElement
+    fireEvent.change(selector, { target: { value: 'no-study-needed' } })
+    await screen.findByRole('alert')
+    expect(save).toHaveBeenCalledTimes(2)
+    rerender(<CompanyInterviewQuestionsPage {...props} applications={[{ ...first, skills: [{ ...typeScript, comfortRating: 'no-study-needed' }] }, second, third]} />)
+    expect(selector.value).toBe('medium')
+    expect(screen.getByRole('heading', { name: 'TypeScript' }).closest('article')?.classList.contains('company-skill-no-study')).toBe(false)
+    fireEvent.change(selector, { target: { value: 'no-study-needed' } })
+    await waitFor(() => expect(selector.disabled).toBe(false))
+    expect(save.mock.calls.slice(2)).toEqual([
+      ['application-1', 'TypeScript', 'no-study-needed'],
+      ['application-2', 'TypeScript', 'no-study-needed'],
+      ['application-3', 'TypeScript', 'no-study-needed'],
+    ])
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('retries a partial save when the aggregate already equals the requested level', async () => {
+    const first = createApplication({ skills: [{ ...typeScript, comfortRating: 'high' }] })
+    const second = createApplication({ id: 'application-2', role: 'Platform Engineer', skills: [{ ...typeScript, comfortRating: 'high' }] })
+    const save = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false).mockResolvedValue(true)
+    const props = { company: 'Acme', applications: [first, second], onBack: vi.fn(), onUpdateSkillComfortRating: save }
+    const { rerender } = render(<CompanyInterviewQuestionsPage {...props} />)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'low' } })
+    await screen.findByRole('alert')
+    rerender(<CompanyInterviewQuestionsPage {...props} applications={[{ ...first, skills: [{ ...typeScript, comfortRating: 'low' }] }, second]} />)
+    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('low')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry saving' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    expect(save.mock.calls.slice(2)).toEqual([['application-1', 'TypeScript', 'low'], ['application-2', 'TypeScript', 'low']])
+  })
+
   it('disables every selector while saving and reflects persisted levels, ordering, and study status', async () => {
     let resolveSave!: (value: boolean) => void
     const save = vi.fn(() => new Promise<boolean>((resolve) => { resolveSave = resolve }))
@@ -183,7 +223,7 @@ describe('CompanyInterviewQuestionsPage', () => {
     const props = { company: 'Acme', applications: [application], onBack: vi.fn(), onUpdateSkillComfortRating: save }
     const { rerender } = render(<CompanyInterviewQuestionsPage {...props} />)
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Knowledge level for TypeScript in Frontend Engineer' }), { target: { value: 'no-study-needed' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Knowledge level for TypeScript' }), { target: { value: 'no-study-needed' } })
     expect(screen.getByRole('status').textContent).toContain('Saving knowledge level')
     for (const selector of screen.getAllByRole('combobox')) expect((selector as HTMLSelectElement).disabled).toBe(true)
     await act(async () => resolveSave(true))
@@ -193,7 +233,7 @@ describe('CompanyInterviewQuestionsPage', () => {
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual(['React', 'TypeScript'])
     const card = screen.getByRole('heading', { name: 'TypeScript' }).closest('article')!
     expect(card.classList.contains('company-skill-no-study')).toBe(true)
-    expect(within(card).getByText('Knowledge level: No study needed')).toBeTruthy()
+    expect(within(card).getByText('Knowledge level:')).toBeTruthy()
     expect(within(card).getByText('Roles: Frontend Engineer (0)')).toBeTruthy()
     expect((within(card).getByRole('combobox') as HTMLSelectElement).value).toBe('no-study-needed')
     for (const selector of screen.getAllByRole('combobox')) expect((selector as HTMLSelectElement).disabled).toBe(false)
