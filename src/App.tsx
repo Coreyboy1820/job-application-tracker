@@ -580,7 +580,7 @@ function App() {
         {activePage === 'interviews' ? <UpcomingInterviewsPage interviews={upcomingInterviews} loading={dataLoading} onOpenApplicationSkills={openApplicationSkills} />
           : activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} onUpdateSkillComfortRating={updateSkillComfortRating} />
           : activePage === 'company-questions' && activeCompany
-            ? <CompanyInterviewQuestionsPage company={activeCompany} applications={applications} onBack={() => navigateTo('skills')} />
+            ? <CompanyInterviewQuestionsPage company={activeCompany} applications={applications} onBack={() => navigateTo('skills')} onUpdateSkillComfortRating={updateSkillComfortRating} />
             : <>
         <section className="page-heading">
           <div><div className="eyebrow">JOB SEARCH DASHBOARD</div><h1>Applications</h1><p className="page-subtitle">A little progress every day adds up.</p></div>

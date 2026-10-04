@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
-import type { Application, JobSkill } from './types'
-import { NO_STUDY_PRIORITY, comfortRatings, getComfortRatingPriority, getSkillPriority } from './skillPriority'
+import type { Application, ComfortRating, JobSkill } from './types'
+import { NO_STUDY_PRIORITY, comfortRatings, getComfortRating, getComfortRatingPriority, getSkillPriority, isComfortRating } from './skillPriority'
 
 type SkillQuestionGroup = {
   name: string
@@ -8,14 +9,33 @@ type SkillQuestionGroup = {
   priority: number
   roles: Map<string, number>
   questions: Map<string, string>
+  applications: Map<string, { id: string; role: string; skillName: string; comfortRating: ComfortRating }>
 }
 
-export default function CompanyInterviewQuestionsPage({ company, applications, onBack }: {
+export default function CompanyInterviewQuestionsPage({ company, applications, onBack, onUpdateSkillComfortRating }: {
   company: string
   applications: Application[]
   onBack: () => void
+  onUpdateSkillComfortRating: (applicationId: string, skillName: string, comfortRating: ComfortRating) => Promise<boolean>
 }) {
   const groups = collectCompanyInterviewQuestions(applications, company)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function updateKnowledgeLevel(applicationId: string, skillName: string, comfortRating: ComfortRating) {
+    if (saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      if (!await onUpdateSkillComfortRating(applicationId, skillName, comfortRating)) {
+        setError('Could not save the knowledge level. Please try again.')
+      }
+    } catch {
+      setError('Could not save the knowledge level. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return <>
     <section className="page-heading company-questions-heading">
@@ -29,6 +49,8 @@ export default function CompanyInterviewQuestionsPage({ company, applications, o
 
     <section className="list-panel company-questions-panel" aria-label={`${company} interview questions`}>
       <div className="panel-heading"><div><h2>Questions by skill</h2><p>Questions are grouped across this company's analyzed applications.</p></div></div>
+      {error && <p className="auth-error" role="alert">{error}</p>}
+      {saving && <p className="company-skill-roles" role="status">Saving knowledge level…</p>}
       {groups.length
         ? <div className="company-questions-list">{groups.map((group) => <article className={`company-skill-questions${group.priority === NO_STUDY_PRIORITY ? ' company-skill-no-study' : ''}`} key={normalizeSkillName(group.name)}>
           <div className="company-skill-heading">
@@ -38,6 +60,31 @@ export default function CompanyInterviewQuestionsPage({ company, applications, o
             </span>
           </div>
           {group.roles.size > 0 && <p className="company-skill-roles">Roles: {[...group.roles].map(([role, priority]) => `${role} (${priority})`).join(', ')}</p>}
+          <div className="company-skill-knowledge-controls">
+            {[...group.applications.values()].map((application) => {
+              const sameRoleApplications = [...group.applications.values()].filter((item) =>
+                normalizeSkillName(item.role) === normalizeSkillName(application.role),
+              )
+              const roleLabel = `${application.role || 'Untitled role'}${sameRoleApplications.length > 1
+                ? ` (application ${sameRoleApplications.findIndex((item) => item.id === application.id) + 1})`
+                : ''}`
+              return <label className="skill-comfort-rating" key={application.id}>
+                <span>Knowledge level — {roleLabel}</span>
+                <select
+                  aria-label={`Knowledge level for ${group.name} in ${roleLabel}`}
+                  value={application.comfortRating}
+                  disabled={saving}
+                  onChange={(event) => {
+                    if (isComfortRating(event.target.value)) {
+                      void updateKnowledgeLevel(application.id, application.skillName, event.target.value)
+                    }
+                  }}
+                >
+                  {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
+                </select>
+              </label>
+            })}
+          </div>
           <ol>{[...group.questions.values()].map((question) => <li key={question}>{question}</li>)}</ol>
         </article>)}</div>
         : <div className="company-questions-empty" role="status">
@@ -49,13 +96,7 @@ export default function CompanyInterviewQuestionsPage({ company, applications, o
   </>
 }
 
-export function collectCompanyInterviewQuestions(applications: Application[], company: string): Array<{
-  name: string
-  category: JobSkill['category']
-  priority: number
-  roles: Map<string, number>
-  questions: Map<string, string>
-}> {
+export function collectCompanyInterviewQuestions(applications: Application[], company: string): SkillQuestionGroup[] {
   const companyKey = normalizeSkillName(company)
   const groups = new Map<string, SkillQuestionGroup>()
   for (const application of applications) {
@@ -67,9 +108,15 @@ export function collectCompanyInterviewQuestions(applications: Application[], co
       if (!key) continue
       let group = groups.get(key)
       if (!group) {
-        group = { name: skill.name, category: skill.category, priority: NO_STUDY_PRIORITY, roles: new Map(), questions: new Map() }
+        group = { name: skill.name, category: skill.category, priority: NO_STUDY_PRIORITY, roles: new Map(), questions: new Map(), applications: new Map() }
         groups.set(key, group)
       }
+      group.applications.set(application.id, {
+        id: application.id,
+        role: application.role,
+        skillName: skill.name,
+        comfortRating: getComfortRating(skill),
+      })
       const priority = getSkillPriority(skill)
       group.priority = combinePriorities(group.priority, priority)
       const role = application.role.trim()
