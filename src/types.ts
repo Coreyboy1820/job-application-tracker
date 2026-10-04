@@ -15,6 +15,11 @@ export type Interview = {
   date: string
   time: string
   notes: string
+  type?: string
+  location?: string
+  meetingLink?: string
+  durationMinutes?: number
+  googleCalendarOpenedAt?: string
 }
 
 export type Application = {
