@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import {
   ArrowRight,
@@ -18,10 +18,12 @@ import {
   X,
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
+import { SKILL_EXTRACTION_VERSION } from '../supabase/functions/analyze-job-posting/analysis-version'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { loadApplications as loadLocalApplications } from './storage'
-import type { Application, Interview, JobSkill, Status } from './types'
-import { DEFAULT_SKILL_PRIORITY, NO_STUDY_PRIORITY, getSkillPriority } from './skillPriority'
+import type { Application, ComfortRating, Interview, JobSkill, Status } from './types'
+import { getSkillPriority, NO_STUDY_PRIORITY, withComfortRating } from './skillPriority'
+import GoogleCalendarButton from './GoogleCalendarButton'
 import SkillsPage from './SkillsPage'
 import CompanyInterviewQuestionsPage from './CompanyInterviewQuestionsPage'
 import './cloud.css'
@@ -41,12 +43,13 @@ type ApplicationRow = {
   skills: JobSkill[]
   skills_analyzed_at: string | null
   skills_source_url: string
+  skill_extraction_version: number
   interview_questions_version: number
   interviews: Interview[]
 }
 
 const statuses: Status[] = ['Interested', 'Applied', 'Interviewing', 'Offer', 'Rejected']
-const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step, job_description, skills, skills_analyzed_at, skills_source_url, interview_questions_version, interviews'
+const applicationColumns = 'id, user_id, company, role, location, date_applied, status, url, notes, next_step, job_description, skills, skills_analyzed_at, skills_source_url, interview_questions_version, skill_extraction_version, interviews'
 type AppPage = 'applications' | 'interviews' | 'skills' | 'company-questions'
 
 type UpcomingInterview = Interview & {
@@ -73,6 +76,7 @@ function fromRow(row: ApplicationRow): Application {
     skillsAnalyzedAt: row.skills_analyzed_at,
     skillsSourceUrl: row.skills_source_url,
     interviewQuestionsVersion: row.interview_questions_version,
+    skillExtractionVersion: row.skill_extraction_version,
     interviews: row.interviews ?? [],
   }
 }
@@ -94,6 +98,7 @@ function toRow(application: Application, userId: string) {
     skills_analyzed_at: application.skillsAnalyzedAt ?? null,
     skills_source_url: application.skillsSourceUrl ?? '',
     interview_questions_version: application.interviewQuestionsVersion ?? 0,
+    skill_extraction_version: application.skillExtractionVersion ?? 0,
     interviews: application.interviews ?? [],
   }
 }
@@ -147,6 +152,8 @@ function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [applications, setApplications] = useState<Application[]>([])
+  const calendarLaunchLock = useRef(false)
+  const [calendarLaunchPending, setCalendarLaunchPending] = useState(false)
   const [agendaNow, setAgendaNow] = useState(() => Date.now())
   const [dataLoading, setDataLoading] = useState(false)
   const [activeStatus, setActiveStatus] = useState<Status | 'All'>('All')
@@ -303,7 +310,7 @@ function App() {
       setAnalysis({ id: application.id, state: 'error', message: 'Add a job posting link to analyze this role.' })
       return
     }
-    if (application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && application.interviewQuestionsVersion === 1) {
+    if (application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && application.interviewQuestionsVersion === 1 && application.skillExtractionVersion === SKILL_EXTRACTION_VERSION) {
       setAnalysis(null)
       return
     }
@@ -324,7 +331,7 @@ function App() {
         setAnalysis({ id: application.id, state: 'error', message })
         return
       }
-      const result = data as { jobDescription: string; skills: JobSkill[]; analyzedAt: string; sourceUrl: string; interviewQuestionsVersion: number }
+      const result = data as { jobDescription: string; skills: JobSkill[]; analyzedAt: string; sourceUrl: string; interviewQuestionsVersion: number; skillExtractionVersion: number }
       setApplications((current) => current.map((item) => item.id === application.id ? {
         ...item,
         jobDescription: result.jobDescription,
@@ -332,10 +339,11 @@ function App() {
           const savedSkill = application.skills?.find((item) =>
             item.name.trim().toLowerCase() === skill.name.trim().toLowerCase(),
           )
-          if (!savedSkill || (!savedSkill.needsNoStudy && savedSkill.priority === undefined)) return skill
+          if (!savedSkill || (!savedSkill.needsNoStudy && savedSkill.priority === undefined && savedSkill.comfortRating === undefined)) return skill
           const priority = getSkillPriority(savedSkill)
           return {
             ...skill,
+            comfortRating: savedSkill.comfortRating,
             needsNoStudy: priority === NO_STUDY_PRIORITY,
             priority,
           }
@@ -343,13 +351,14 @@ function App() {
         skillsAnalyzedAt: result.analyzedAt,
         skillsSourceUrl: result.sourceUrl,
         interviewQuestionsVersion: result.interviewQuestionsVersion,
+        skillExtractionVersion: result.skillExtractionVersion,
       } : item))
       setAnalysis(null)
     }).catch((reason: unknown) => {
       if (active) setAnalysis({ id: application.id, state: 'error', message: reason instanceof Error ? reason.message : 'Could not analyze this posting.' })
     })
     return () => { active = false }
-  }, [client, selectedApplicationId, selectedApplication?.id, selectedApplication?.url, selectedApplication?.skillsAnalyzedAt, selectedApplication?.skillsSourceUrl, selectedApplication?.interviewQuestionsVersion, analysisAttempt])
+  }, [client, selectedApplicationId, selectedApplication?.id, selectedApplication?.url, selectedApplication?.skillsAnalyzedAt, selectedApplication?.skillsSourceUrl, selectedApplication?.interviewQuestionsVersion, selectedApplication?.skillExtractionVersion, analysisAttempt])
 
   async function addApplication(application: Omit<Application, 'id'>): Promise<boolean> {
     if (!client || !userId) return false
@@ -389,6 +398,7 @@ function App() {
   }
 
   async function updateInterviews(id: string, interviews: Interview[]): Promise<string | null> {
+    if (calendarLaunchLock.current) return 'Wait for the calendar tracking update to finish before saving this schedule.'
     if (!client) return 'Interview schedule cannot be saved because the database is unavailable.'
     setError(null)
     const { data, error: updateError } = await client
@@ -407,6 +417,26 @@ function App() {
     setApplications((current) => current.map((item) => item.id === id ? updated : item))
     setInterviewEditorApplicationId(null)
     return null
+  }
+
+  async function recordCalendarLaunch(applicationId: string, interviewId: string): Promise<void> {
+    if (calendarLaunchLock.current) throw new Error('Another calendar action is being saved. Please wait and retry.')
+    calendarLaunchLock.current = true
+    setCalendarLaunchPending(true)
+    try {
+      if (!client) throw new Error('The database is unavailable. Please retry.')
+      const application = applications.find((item) => item.id === applicationId)
+      if (!application?.interviews?.some((item) => item.id === interviewId)) throw new Error('Save this interview before opening Google Calendar.')
+      const interviews = application.interviews.map((item) => item.id === interviewId
+        ? { ...item, googleCalendarOpenedAt: new Date().toISOString() } : item)
+      const { data, error: saveError } = await client.from('applications').update({ interviews }).eq('id', applicationId).select(applicationColumns).single()
+      if (saveError || !data) throw new Error(saveError?.message ?? 'Could not save the calendar tracking status. Please retry.')
+      const updated = fromRow(data as ApplicationRow)
+      setApplications((current) => current.map((item) => item.id === applicationId ? updated : item))
+    } finally {
+      calendarLaunchLock.current = false
+      setCalendarLaunchPending(false)
+    }
   }
 
   async function updateApplication(id: string, application: Omit<Application, 'id'>): Promise<boolean> {
@@ -431,6 +461,7 @@ function App() {
           skills_analyzed_at: null,
           skills_source_url: '',
           interview_questions_version: 0,
+          skill_extraction_version: 0,
         } : {}),
       })
       .eq('id', id)
@@ -456,25 +487,30 @@ function App() {
       skills_analyzed_at: null,
       skills_source_url: '',
       interview_questions_version: 0,
+      skill_extraction_version: 0,
     }).eq('id', id)
     if (updateError) {
       setError(`Could not save the job posting link: ${updateError.message}`)
       return false
     }
     setApplications((current) => current.map((item) => item.id === id ? {
-      ...item, url, jobDescription: '', skills: [], skillsAnalyzedAt: null, skillsSourceUrl: '', interviewQuestionsVersion: 0,
+      ...item, url, jobDescription: '', skills: [], skillsAnalyzedAt: null, skillsSourceUrl: '', interviewQuestionsVersion: 0, skillExtractionVersion: 0,
     } : item))
     return true
   }
 
-  async function updateSkillStudyStatus(id: string, skillName: string, needsNoStudy: boolean): Promise<boolean> {
+  async function updateSkillComfortRating(id: string, skillName: string, comfortRating: ComfortRating): Promise<boolean> {
+    return updateSkill(id, skillName, (skill) => withComfortRating(skill, comfortRating), 'Could not update skill comfort level')
+  }
+
+  async function updateSkill(id: string, skillName: string, updateSkill: (skill: JobSkill) => JobSkill, errorContext: string): Promise<boolean> {
     if (!client) return false
     const application = applications.find((item) => item.id === id)
     if (!application) return false
     const normalizedName = skillName.trim().toLowerCase()
     const skills = (application.skills ?? []).map((skill) => (
       skill.name.trim().toLowerCase() === normalizedName
-        ? { ...skill, needsNoStudy, priority: needsNoStudy ? NO_STUDY_PRIORITY : DEFAULT_SKILL_PRIORITY }
+        ? updateSkill(skill)
         : skill
     ))
     if (!skills.some((skill) => skill.name.trim().toLowerCase() === normalizedName)) return false
@@ -487,7 +523,7 @@ function App() {
         .select(applicationColumns)
         .single()
       if (updateError) {
-        setError(`Could not update skill study status: ${updateError.message}`)
+        setError(`${errorContext}: ${updateError.message}`)
         return false
       }
 
@@ -495,7 +531,7 @@ function App() {
       setApplications((current) => current.map((item) => item.id === id ? updated : item))
       return true
     } catch (reason) {
-      setError(`Could not update skill study status: ${reason instanceof Error ? reason.message : 'An unexpected error occurred.'}`)
+      setError(`${errorContext}: ${reason instanceof Error ? reason.message : 'An unexpected error occurred.'}`)
       return false
     }
   }
@@ -572,10 +608,10 @@ function App() {
         <header className="topbar"><span className="breadcrumb">Workspace <span>/</span> {activePage === 'applications' ? 'Applications' : activePage === 'interviews' ? 'Interviews' : activePage === 'company-questions' ? <>Skills <span>/</span> {activeCompany}</> : 'Skills'}</span><button className="sign-out-button" onClick={() => void signOut()}><LogOut size={14} /> Sign out</button></header>
         {error && <div className="storage-message storage-error" role="alert">{error}</div>}
         {notice && <div className="storage-message storage-notice" role="status"><span>{notice}</span><button aria-label="Dismiss notice" onClick={() => setNotice(null)}><X size={15} /></button></div>}
-        {activePage === 'interviews' ? <UpcomingInterviewsPage interviews={upcomingInterviews} loading={dataLoading} onOpenApplicationSkills={openApplicationSkills} />
-          : activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} onUpdateSkillStudyStatus={updateSkillStudyStatus} />
+        {activePage === 'interviews' ? <UpcomingInterviewsPage interviews={upcomingInterviews} loading={dataLoading} onOpenApplicationSkills={openApplicationSkills} onRecordLaunch={recordCalendarLaunch} calendarLaunchPending={calendarLaunchPending} />
+          : activePage === 'skills' ? <SkillsPage applications={applications} loading={dataLoading} onOpenApplication={openApplication} onOpenCompany={openCompanyQuestions} onOpenApplicationSkills={openApplicationSkills} applicationFilterId={activeSkillApplicationId} onClearApplicationFilter={() => navigateTo('skills')} onUpdateSkillComfortRating={updateSkillComfortRating} />
           : activePage === 'company-questions' && activeCompany
-            ? <CompanyInterviewQuestionsPage company={activeCompany} applications={applications} onBack={() => navigateTo('skills')} />
+            ? <CompanyInterviewQuestionsPage company={activeCompany} applications={applications} onBack={() => navigateTo('skills')} onUpdateSkillComfortRating={updateSkillComfortRating} />
             : <>
         <section className="page-heading">
           <div><div className="eyebrow">JOB SEARCH DASHBOARD</div><h1>Applications</h1><p className="page-subtitle">A little progress every day adds up.</p></div>
@@ -626,6 +662,8 @@ function App() {
         application={interviewEditorApplication}
         onClose={() => setInterviewEditorApplicationId(null)}
         onSave={updateInterviews}
+        calendarLaunchPending={calendarLaunchPending}
+        onRecordLaunch={(interviewId) => recordCalendarLaunch(interviewEditorApplication.id, interviewId)}
       />}
       {selectedApplication && <ApplicationDetailView
         key={selectedApplication.id}
@@ -644,10 +682,14 @@ function UpcomingInterviewsPage({
   interviews,
   loading,
   onOpenApplicationSkills,
+  onRecordLaunch,
+  calendarLaunchPending,
 }: {
   interviews: UpcomingInterview[]
   loading: boolean
   onOpenApplicationSkills: (id: string) => void
+  onRecordLaunch: (applicationId: string, interviewId: string) => Promise<void>
+  calendarLaunchPending: boolean
 }) {
   return <>
     <section className="page-heading">
@@ -658,10 +700,10 @@ function UpcomingInterviewsPage({
       {loading ? <div className="empty-state"><p>Loading your interviews…</p></div> : interviews.length > 0 ? (
         <div className="upcoming-interview-list">
           {interviews.map((interview) => (
+            <div key={`${interview.applicationId}-${interview.id}`} className="calendar-agenda-row">
             <button
               type="button"
               className="upcoming-interview"
-              key={`${interview.applicationId}-${interview.id}`}
               onClick={() => onOpenApplicationSkills(interview.applicationId)}
               aria-label={`View skills for ${interview.role} at ${interview.company}`}
             >
@@ -669,10 +711,14 @@ function UpcomingInterviewsPage({
               <span className="upcoming-interview-details">
                 <strong>{interview.company}</strong>
                 <span>{interview.role}{interview.location ? ` · ${interview.location}` : ''}</span>
+                <span>{[interview.type, `${interview.durationMinutes ?? 60} minutes`].filter(Boolean).join(' · ')}</span>
+                {interview.meetingLink && <span className="upcoming-interview-notes" style={{ overflowWrap: 'anywhere' }}>{interview.meetingLink}</span>}
                 {interview.notes && <span className="upcoming-interview-notes">{interview.notes}</span>}
               </span>
               <ArrowRight size={16} className="upcoming-interview-arrow" />
             </button>
+            <GoogleCalendarButton disabled={calendarLaunchPending} application={{ id: interview.applicationId, company: interview.company, role: interview.role, location: interview.location }} interview={interview} onRecordLaunch={(id) => onRecordLaunch(interview.applicationId, id)} />
+            </div>
           ))}
         </div>
       ) : <div className="empty-state"><p>{loading ? 'Loading your interviews…' : 'No upcoming interviews. Schedule one from an application to see it here.'}</p></div>}
@@ -753,23 +799,42 @@ function ApplicationModal({ application, onClose, onSave }: { application: Appli
   </form></section></div>
 }
 
-function InterviewModal({ application, onClose, onSave }: {
+function InterviewModal({ application, onClose, onSave, onRecordLaunch, calendarLaunchPending }: {
   application: Application
   onClose: () => void
   onSave: (applicationId: string, interviews: Interview[]) => Promise<string | null>
+  onRecordLaunch: (interviewId: string) => Promise<void>
+  calendarLaunchPending: boolean
 }) {
   const [interviews, setInterviews] = useState<Interview[]>(application.interviews ?? [])
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [notes, setNotes] = useState('')
+  const [type, setType] = useState('')
+  const [location, setLocation] = useState('')
+  const [meetingLink, setMeetingLink] = useState('')
+  const [durationMinutes, setDurationMinutes] = useState('60')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [scheduleSaving, setScheduleSaving] = useState(false)
+  const [calendarSaving, setCalendarSaving] = useState(false)
+  const saving = scheduleSaving || calendarSaving || calendarLaunchPending
+
+  useEffect(() => {
+    setInterviews((current) => current.map((interview) => {
+      const persisted = application.interviews?.find((item) => item.id === interview.id)
+      return persisted?.googleCalendarOpenedAt ? { ...interview, googleCalendarOpenedAt: persisted.googleCalendarOpenedAt } : interview
+    }))
+  }, [application.interviews])
 
   function resetForm() {
     setDate('')
     setTime('')
     setNotes('')
+    setType('')
+    setLocation('')
+    setMeetingLink('')
+    setDurationMinutes('60')
     setEditingId(null)
     setError(null)
   }
@@ -781,7 +846,23 @@ function InterviewModal({ application, onClose, onSave }: {
       return
     }
 
+    const duration = Number(durationMinutes)
+    if (!Number.isInteger(duration) || duration < 15 || duration > 480) {
+      setError('Choose a duration between 15 and 480 whole minutes.')
+      return
+    }
+    if (meetingLink.trim()) {
+      try {
+        const link = new URL(meetingLink.trim())
+        if (!['http:', 'https:'].includes(link.protocol)) throw new Error('Unsupported URL')
+      } catch {
+        setError('Enter a valid meeting link starting with http:// or https://.')
+        return
+      }
+    }
     const interview: Interview = {
+      ...interviews.find((item) => item.id === editingId),
+      type: type.trim(), location: location.trim(), meetingLink: meetingLink.trim(), durationMinutes: duration,
       id: editingId ?? crypto.randomUUID(),
       date,
       time,
@@ -798,19 +879,23 @@ function InterviewModal({ application, onClose, onSave }: {
     setDate(interview.date)
     setTime(interview.time)
     setNotes(interview.notes)
+    setType(interview.type ?? '')
+    setLocation(interview.location ?? '')
+    setMeetingLink(interview.meetingLink ?? '')
+    setDurationMinutes(String(interview.durationMinutes ?? 60))
     setError(null)
   }
 
   async function saveSchedule() {
-    if (editingId || date || time || notes.trim()) {
+    if (editingId || date || time || notes.trim() || type.trim() || location.trim() || meetingLink.trim() || durationMinutes !== '60') {
       setError('Add or update the interview draft before saving the schedule.')
       return
     }
 
-    setSaving(true)
+    setScheduleSaving(true)
     setError(null)
     const saveError = await onSave(application.id, interviews)
-    setSaving(false)
+    setScheduleSaving(false)
     if (saveError) setError(`Could not save interview schedule: ${saveError}`)
     else onClose()
   }
@@ -825,16 +910,28 @@ function InterviewModal({ application, onClose, onSave }: {
       </header>
 
       <div style={{ display: 'grid', gap: '16px' }}>
+        <p className="muted-text" style={{ margin: 0 }}>Save interview changes before adding them to Google Calendar. Edits and deletions here do not update Google Calendar; manage existing events there.</p>
         <div style={{ display: 'grid', gap: '8px' }}>
           {sortedInterviews.length === 0
             ? <p className="muted-text" style={{ margin: 0 }}>No interviews scheduled yet.</p>
             : sortedInterviews.map((interview) => (
-              <div key={interview.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', background: '#faf9ff', border: '1px solid #e8e5f8', borderRadius: '8px', padding: '10px 12px' }}>
+              <div key={interview.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', background: '#faf9ff', border: '1px solid #e8e5f8', borderRadius: '8px', padding: '10px 12px' }}>
                 <div>
                   <strong>{formatInterviewDateTime(interview.date, interview.time)}</strong>
+                  <div className="muted-text">{[interview.type, `${interview.durationMinutes ?? 60} minutes`, interview.location].filter(Boolean).join(' · ')}</div>
+                  {interview.meetingLink && <div className="muted-text" style={{ overflowWrap: 'anywhere' }}>{interview.meetingLink}</div>}
                   {interview.notes && <div style={{ fontSize: '11px', color: '#6e7082', marginTop: '3px' }}>{interview.notes}</div>}
                 </div>
-                <div style={{ display: 'flex', gap: '6px', flex: 'none' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '100%' }}>
+                  <GoogleCalendarButton application={application} interview={interview} disabled={saving || editingId === interview.id || JSON.stringify({ ...interview, googleCalendarOpenedAt: undefined }) !== JSON.stringify({ ...application.interviews?.find((item) => item.id === interview.id), googleCalendarOpenedAt: undefined })} onRecordLaunch={async (id) => {
+                    setCalendarSaving(true)
+                    try {
+                      await onRecordLaunch(id)
+                      setInterviews((current) => current.map((item) => item.id === id ? { ...item, googleCalendarOpenedAt: new Date().toISOString() } : item))
+                    } finally {
+                      setCalendarSaving(false)
+                    }
+                  }} />
                   <button type="button" className="text-button" onClick={() => editInterview(interview)} disabled={saving}>Edit</button>
                   <button type="button" className="text-button danger" onClick={() => {
                     setInterviews((current) => current.filter((item) => item.id !== interview.id))
@@ -850,10 +947,14 @@ function InterviewModal({ application, onClose, onSave }: {
           <div className="form-grid">
             <label className="field"><span>Date <i>*</i></span><input type="date" required value={date} onChange={(event) => setDate(event.target.value)} disabled={saving} /></label>
             <label className="field"><span>Start time <i>*</i></span><input type="time" required value={time} onChange={(event) => setTime(event.target.value)} disabled={saving} /></label>
+            <label className="field"><span>Interview type</span><input value={type} onChange={(event) => setType(event.target.value)} placeholder="Technical, screening, onsite…" disabled={saving} /></label>
+            <label className="field"><span>Duration (minutes)</span><input type="number" min={15} max={480} step={1} required value={durationMinutes} onChange={(event) => setDurationMinutes(event.target.value)} disabled={saving} /></label>
+            <label className="field field-full"><span>Interview location</span><input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Optional office or room" disabled={saving} /></label>
+            <label className="field field-full"><span>Meeting link</span><input value={meetingLink} onChange={(event) => setMeetingLink(event.target.value)} placeholder="https://…" disabled={saving} /></label>
             <label className="field field-full"><span>Notes</span><textarea rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional context for this round" disabled={saving} /></label>
           </div>
           <div className="modal-actions">
-            <button type="button" className="text-button" onClick={resetForm} disabled={saving || (!date && !time && !notes && !editingId)}>Clear</button>
+            <button type="button" className="text-button" onClick={resetForm} disabled={saving || (!date && !time && !notes && !type && !location && !meetingLink && durationMinutes === '60' && !editingId)}>Clear</button>
             <button className="primary-button" type="submit" disabled={saving}>{editingId ? 'Update interview' : 'Add interview'}</button>
           </div>
         </form>
@@ -949,7 +1050,7 @@ function getUpcomingInterviews(applications: Application[], now: number): Upcomi
       applicationId: application.id,
       company: application.company,
       role: application.role,
-      location: application.location,
+      location: interview.location || application.location,
       timestamp: getInterviewTimestamp(interview),
     }))
     .filter((interview) => isValidInterviewDateTime(interview.date, interview.time) && interview.timestamp >= now))

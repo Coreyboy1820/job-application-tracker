@@ -42,8 +42,18 @@ The **CI / Build and test** check runs on pull requests targeting `main` and pus
 - View upcoming interviews in chronological order from the Interviews page; open any interview to return to its application.
 - Search, filter, sort, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
 - Click a company or role to open its details and analyze its saved job posting link. Rolecall reads the page, asks an AI model to identify stated skills, and saves the description, evidence, and skill list to that application. Results are cached for the link and reused when you open the application again. Use **View skills** in the details to go to the Skills page.
-- In the Skills page, use an application's skill suggestions to mark skills that do not need study. Numeric priorities are stored per application skill; lower numbers sort first, and 0 means no study. Company interview practice groups skills across roles and moves skills with no-study status for every associated role to the bottom.
+- In the Skills page, choose a knowledge level for each skill: Low, Medium, High, or No study needed. Skills default to Low. Levels are stored per application skill and feed the existing study-priority ordering: lower levels sort first, while skills marked No study needed remain crossed out and sort last. Company interview practice groups skills across roles and moves skills marked No study needed for every associated role to the bottom. Use the knowledge-level dropdown in the company skill card's badge to set that skill's level for all associated roles at the company.
 - If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
+
+### Add interviews to Google Calendar
+
+Save the interview schedule, then choose **Add to Google Calendar** from the schedule or upcoming interviews. Review the sharing notice and continue; Google opens a prefilled draft. Sign in to Google if asked, review the details, and click **Save** in Calendar. Rolecall does not request OAuth permissions, read your calendar, or store Google credentials. Interview details are sent to Google in the event URL only when you continue.
+
+The event includes company, role, interview type, notes, location/meeting link, and date/time. Times use the current device time zone; choose the matching zone when scheduling. Duration defaults to 60 minutes and can be changed. Existing interviews remain compatible.
+
+Rolecall records that the Calendar draft was opened in the existing account-owned interview data; it cannot verify whether Google saved it. Reopening requires an explicit duplicate warning. Check Google Calendar for an existing event before saving another draft, including after using another device. Launch tracking is a warning, not guaranteed deduplication: stale tabs/devices and independently created Google events cannot be detected. There is no automatic synchronization: update or delete the Calendar event manually when changing or deleting the interview. If pop-ups are blocked, allow them for Rolecall and retry; if Google rejects the draft, create the event manually from the saved interview details.
+
+This uses [Google's documented event-link flow](https://developers.google.com/workspace/calendar/api/concepts/inviting-attendees-to-events). Authenticated Calendar API integration could support automatic synchronization and reliable event IDs, but requires additional OAuth setup and Calendar access; this flow avoids that permission requirement. No new database migration or Google API key is needed.
 
 ### Configure job-posting analysis
 
@@ -53,6 +63,8 @@ The analyzer runs as a Supabase Edge Function so the Gemini API key stays on the
 npx supabase db push
 npx supabase functions deploy analyze-job-posting
 ```
+
+Grouped examples are saved as individual skills: debugging tools such as GDB, JTAG, and serial debuggers become GDB, JTAG, and serial debugging. Duplicate skills and redundant broad categories are removed; standalone skills without listed examples are retained. Older analyses are re-extracted from their saved description when next opened, preserving study settings for matching individual skills. Apply the migration before deploying the updated function.
 
 Gemini generates three general interview questions per normalized skill name. Those question sets are stored in an account-scoped cache and reused when the same skill appears in another application; existing saved analyses are refreshed once the next time the application is opened.
 

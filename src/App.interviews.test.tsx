@@ -114,8 +114,8 @@ describe('application interview scheduling', () => {
 
     await waitFor(() => expect(supabaseMocks.update).toHaveBeenCalledWith({
       interviews: [
-        { id: expect.any(String), date: '2030-06-12', time: '10:30', notes: 'First round' },
-        { id: expect.any(String), date: '2030-06-19', time: '13:00', notes: 'Second round' },
+        expect.objectContaining({ id: expect.any(String), date: '2030-06-12', time: '10:30', notes: 'First round', durationMinutes: 60 }),
+        expect.objectContaining({ id: expect.any(String), date: '2030-06-19', time: '13:00', notes: 'Second round', durationMinutes: 60 }),
       ],
     }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Acme — Frontend Engineer' })).toBeNull())

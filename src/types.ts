@@ -1,11 +1,18 @@
 export type Status = 'Interested' | 'Applied' | 'Interviewing' | 'Offer' | 'Rejected'
 
+export type ComfortRating =
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'no-study-needed'
+
 export type JobSkill = {
   name: string
   category: 'technical' | 'tools' | 'domain' | 'process' | 'other'
   importance: 'required' | 'preferred' | 'mentioned'
   evidence: string
   interviewQuestions?: string[]
+  comfortRating?: ComfortRating
   needsNoStudy?: boolean
   priority?: number
 }
@@ -15,6 +22,11 @@ export type Interview = {
   date: string
   time: string
   notes: string
+  type?: string
+  location?: string
+  meetingLink?: string
+  durationMinutes?: number
+  googleCalendarOpenedAt?: string
 }
 
 export type Application = {
@@ -32,5 +44,6 @@ export type Application = {
   skills?: JobSkill[]
   skillsAnalyzedAt?: string | null
   skillsSourceUrl?: string
+  skillExtractionVersion?: number
   interviewQuestionsVersion?: number
 }
