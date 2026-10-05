@@ -21,14 +21,14 @@ For GitHub Actions builds, add repository variables named `VITE_SUPABASE_URL` an
 
 ## Run it locally
 
-You need Node.js and npm installed. From this folder, run:
+Use Node.js 22 and npm to match CI. From this folder, run:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Vite prints a local URL (usually `http://localhost:5173`). Open it in your browser. Run `npm test` to execute the component tests, or `npm run build` to make a production build.
+Vite prints a local URL (usually `http://localhost:5173`). Open it in your browser. Run `npm test` to execute the test suite, or `npm run build` to make a production build.
 
 ### Continuous integration
 
@@ -76,14 +76,19 @@ The function only accepts public HTTPS posting links, limits downloaded pages to
 
 ## How the pieces fit together
 
-- `src/main.tsx` starts React and loads the stylesheet.
-- `src/App.tsx` contains the sign-in screen, application list, forms, and database operations.
-- `src/lib/supabase.ts` creates the browser client from local environment variables.
-- `src/storage.ts` reads existing on-device records so they can be imported into the shared database.
+- `src/main.tsx` starts React and imports `src/styles/styles.css`; `src/app/App.tsx` imports `src/styles/cloud.css`.
+- `src/app/App.tsx` owns session and application state, database operations, and feature composition; `routing.ts` and `useAppRoute.ts` handle hash navigation.
+- `src/features/applications/` contains application forms, details, status UI, database row mappings, and legacy-record import helpers.
+- `src/features/auth/` contains sign-in and missing-configuration screens.
+- `src/features/interviews/` contains scheduling, upcoming interviews, date helpers, and Google Calendar draft links.
+- `src/features/skills/` contains skills and company practice pages and study-priority logic.
+- `src/shared/` contains common models, the Supabase browser client, and reusable UI and utilities.
+- `src/test/unit/`, `src/test/components/`, and `src/test/integration/` contain tests; `src/test/setup.ts` provides shared cleanup.
 - `supabase/migrations/` contains the versioned database schema and access rules.
 - `supabase/functions/analyze-job-posting/` fetches public job posting pages, extracts skills with structured AI output, and saves results for the signed-in owner.
-- `src/styles.css` contains responsive page and component styles.
 - `index.html` is the page Vite serves; React mounts into its `#root` element.
+
+See [the architecture decision](docs/architecture.md) for the alternatives, module boundaries, file mapping, and test placement conventions. For a focused utility test, run `npx vitest run src/test/unit/skillPriority.test.ts`.
 
 Supabase Auth identifies the user. Every application row has a `user_id`; the database enforces ownership even if a browser client is modified. The publishable key is safe to include in the frontend only because the table grants and RLS policies are restrictive. User data is no longer written to local storage, aside from the one-time import marker and the legacy records kept for import.
 
