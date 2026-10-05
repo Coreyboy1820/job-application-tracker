@@ -6,6 +6,9 @@ import { comfortRatings, getComfortRating, NO_STUDY_PRIORITY, getSkillPriority, 
 import { sortApplications } from '../../applications/applicationSort'
 import type { ApplicationSort } from '../../applications/applicationSort'
 
+import PracticeHandoff, { PracticeQuestionChoice } from '../components/PracticeHandoff'
+import type { PracticeQuestion } from '../practicePrompt'
+
 type ImportanceFilter = 'All' | JobSkill['importance']
 
 export default function SkillsPage({ applications, loading, now = Date.now(), onOpenApplication, onOpenCompany, onOpenApplicationSkills, applicationFilterId, onClearApplicationFilter, onUpdateSkillComfortRating }: {
@@ -116,73 +119,76 @@ export default function SkillsPage({ applications, loading, now = Date.now(), on
           const isCollapsed = collapsedApplications.has(application.id)
           const applicationContentId = `skills-application-content-${application.id}`
           const skills = sortSkillsForStudy((application.skills ?? []).filter((skill) => importance === 'All' || skill.importance === importance))
+          const practiceQuestions = isAnalyzed ? (application.skills ?? []).flatMap((skill) => (skill.interviewQuestions ?? []).map((_, index) => applicationPracticeQuestion(skill, index))) : []
           return <article className="skills-application" key={application.id}>
-            <header className="skills-application-header">
-              <div className="skills-company-mark"><BriefcaseBusiness size={16} /></div>
-              <div className="skills-application-title"><h3><a className="skills-company-link" href={`#/skills/company/${encodeURIComponent(application.company)}`} onClick={(event) => { event.preventDefault(); onOpenCompany(application.company) }}>{application.company}</a></h3><p>{application.role}{application.location ? ` · ${application.location}` : ''}</p><span className="skills-application-meta">{application.status} · Applied {formatDate(application.dateApplied)}{isAnalyzed && application.skillsAnalyzedAt ? ` · Analyzed ${formatDate(application.skillsAnalyzedAt.slice(0, 10))}` : ''}</span></div>
-              <div className="skills-application-actions">
-                {application.url && <a className="skills-original-link" href={application.url} target="_blank" rel="noreferrer">Posting <ArrowUpRight size={13} /></a>}
-                <button type="button" className="skills-application-skills-link" onClick={() => onOpenApplicationSkills(application.id)}>View skills</button>
-                <button type="button" className="secondary-button" onClick={() => onOpenApplication(application.id)}>{isAnalyzed ? 'Open application' : 'Analyze posting'}</button>
-                <button
-                  type="button"
-                  className="skills-collapse-button"
-                  aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${application.company} skills`}
-                  aria-expanded={!isCollapsed}
-                  aria-controls={applicationContentId}
-                  onClick={() => toggleApplication(application.id)}
-                >
-                  <ChevronDown size={15} />
-                </button>
-              </div>
-            </header>
-            <div id={applicationContentId} hidden={isCollapsed}>
-              {savingApplications.has(application.id) && <p className="company-skill-roles" role="status">Saving knowledge level…</p>}
-              {isAnalyzed ? <>
-                {skills.length ? <div className="skills-library-grid">{skills.map((skill, index) => {
-                  const isSelected = selectedSkill?.applicationId === application.id && selectedSkill.skillName === skill.name
-                  const questionsId = `skill-questions-${application.id}-${index}`
-                  const questions = skill.interviewQuestions ?? []
-                  const needsNoStudy = getSkillPriority(skill) === NO_STUDY_PRIORITY
-                  return <article className={`analyzed-skill${needsNoStudy ? ' analyzed-skill-no-study' : ''}`} key={`${skill.name}-${skill.evidence}`}>
-                    <button
-                      type="button"
-                      className="skill-practice-toggle"
-                      aria-expanded={isSelected}
-                      aria-controls={questionsId}
-                      onClick={() => setSelectedSkill(isSelected ? null : { applicationId: application.id, skillName: skill.name })}
-                    >
-                      <span className="analyzed-skill-heading"><strong>{skill.name}</strong><span className={`importance importance-${skill.importance}`}>{skill.importance}</span></span>
-                      <span className="analyzed-skill-meta">{skill.category}</span>
-                      <span className="skill-practice-hint">{isSelected ? 'Hide interview questions' : 'Practice interview questions'}</span>
-                    </button>
-                    <blockquote>“{skill.evidence}”</blockquote>
-                    <label className="skill-comfort-rating">
-                      <span>Knowledge level</span>
-                      <select
-                        aria-label={`Knowledge level for ${skill.name}`}
-                        value={getComfortRating(skill)}
-                        disabled={savingApplications.has(application.id)}
-                        onChange={(event) => {
-                          if (isComfortRating(event.target.value)) {
-                            void updateKnowledge(application.id, skill.name, event.target.value)
-                          }
-                        }}
+            <PracticeHandoff questions={practiceQuestions} company={application.company} roles={[application.role]}>
+              <header className="skills-application-header">
+                <div className="skills-company-mark"><BriefcaseBusiness size={16} /></div>
+                <div className="skills-application-title"><h3><a className="skills-company-link" href={`#/skills/company/${encodeURIComponent(application.company)}`} onClick={(event) => { event.preventDefault(); onOpenCompany(application.company) }}>{application.company}</a></h3><p>{application.role}{application.location ? ` · ${application.location}` : ''}</p><span className="skills-application-meta">{application.status} · Applied {formatDate(application.dateApplied)}{isAnalyzed && application.skillsAnalyzedAt ? ` · Analyzed ${formatDate(application.skillsAnalyzedAt.slice(0, 10))}` : ''}</span></div>
+                <div className="skills-application-actions">
+                  {application.url && <a className="skills-original-link" href={application.url} target="_blank" rel="noreferrer">Posting <ArrowUpRight size={13} /></a>}
+                  <button type="button" className="skills-application-skills-link" onClick={() => onOpenApplicationSkills(application.id)}>View skills</button>
+                  <button type="button" className="secondary-button" onClick={() => onOpenApplication(application.id)}>{isAnalyzed ? 'Open application' : 'Analyze posting'}</button>
+                  <button
+                    type="button"
+                    className="skills-collapse-button"
+                    aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${application.company} skills`}
+                    aria-expanded={!isCollapsed}
+                    aria-controls={applicationContentId}
+                    onClick={() => toggleApplication(application.id)}
+                  >
+                    <ChevronDown size={15} />
+                  </button>
+                </div>
+              </header>
+              <div id={applicationContentId} hidden={isCollapsed}>
+                {savingApplications.has(application.id) && <p className="company-skill-roles" role="status">Saving knowledge level…</p>}
+                {isAnalyzed ? <>
+                  {skills.length ? <div className="skills-library-grid">{skills.map((skill, index) => {
+                    const isSelected = selectedSkill?.applicationId === application.id && selectedSkill.skillName === skill.name
+                    const questionsId = `skill-questions-${application.id}-${index}`
+                    const questions = skill.interviewQuestions ?? []
+                    const needsNoStudy = getSkillPriority(skill) === NO_STUDY_PRIORITY
+                    return <article className={`analyzed-skill${needsNoStudy ? ' analyzed-skill-no-study' : ''}`} key={`${skill.name}-${skill.evidence}`}>
+                      <button
+                        type="button"
+                        className="skill-practice-toggle"
+                        aria-expanded={isSelected}
+                        aria-controls={questionsId}
+                        onClick={() => setSelectedSkill(isSelected ? null : { applicationId: application.id, skillName: skill.name })}
                       >
-                        {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
-                      </select>
-                    </label>
-                    {isSelected && <div className="skill-practice-questions" id={questionsId}>
-                      <h4>Interview practice for {skill.name}</h4>
-                      {questions.length
-                        ? <ol>{questions.map((question, questionIndex) => <li key={`${questionIndex}-${question}`}>{question}</li>)}</ol>
-                        : <p>Interview questions are not available for this saved analysis yet. Open the application to generate them.</p>}
-                    </div>}
-                  </article>
-                })}</div> : <div className="no-skills-found">{application.skills?.length ? `No ${importance.toLowerCase()} skills in this posting.` : 'No specific skills were found in the saved job posting.'}</div>}
-                {application.jobDescription && <details className="saved-job-description"><summary>View fetched job description</summary><pre>{application.jobDescription}</pre></details>}
-              </> : <div className="skills-not-analyzed">{application.url ? 'Open the application to fetch the posting and analyze its skills.' : 'Add a job posting link to analyze this application.'}</div>}
-            </div>
+                        <span className="analyzed-skill-heading"><strong>{skill.name}</strong><span className={`importance importance-${skill.importance}`}>{skill.importance}</span></span>
+                        <span className="analyzed-skill-meta">{skill.category}</span>
+                        <span className="skill-practice-hint">{isSelected ? 'Hide interview questions' : 'Practice interview questions'}</span>
+                      </button>
+                      <blockquote>“{skill.evidence}”</blockquote>
+                      <label className="skill-comfort-rating">
+                        <span>Knowledge level</span>
+                        <select
+                          aria-label={`Knowledge level for ${skill.name}`}
+                          value={getComfortRating(skill)}
+                          disabled={savingApplications.has(application.id)}
+                          onChange={(event) => {
+                            if (isComfortRating(event.target.value)) {
+                              void updateKnowledge(application.id, skill.name, event.target.value)
+                            }
+                          }}
+                        >
+                          {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
+                        </select>
+                      </label>
+                      {isSelected && <div className="skill-practice-questions" id={questionsId}>
+                        <h4>Interview practice for {skill.name}</h4>
+                        {questions.length
+                          ? <ol>{questions.map((question, questionIndex) => <li key={`${questionIndex}-${question}`}><PracticeQuestionChoice question={applicationPracticeQuestion(skill, questionIndex)} /></li>)}</ol>
+                          : <p>Interview questions are not available for this saved analysis yet. Open the application to generate them.</p>}
+                      </div>}
+                    </article>
+                  })}</div> : <div className="no-skills-found">{application.skills?.length ? `No ${importance.toLowerCase()} skills in this posting.` : 'No specific skills were found in the saved job posting.'}</div>}
+                  {application.jobDescription && <details className="saved-job-description"><summary>View fetched job description</summary><pre>{application.jobDescription}</pre></details>}
+                </> : <div className="skills-not-analyzed">{application.url ? 'Open the application to fetch the posting and analyze its skills.' : 'Add a job posting link to analyze this application.'}</div>}
+              </div>
+            </PracticeHandoff>
           </article>
         })}
       </div> : <div className="empty-state"><div className="empty-illustration"><Sparkles size={20} /></div><h3>{applicationFilterId && !selectedApplication ? 'Application unavailable' : applications.length ? 'No matching skills' : 'No applications yet'}</h3><p>{applicationFilterId && !selectedApplication ? 'This application may have been deleted. Choose Show all skills to return to your library.' : applications.length ? 'Try a different search or importance filter.' : 'Add an application with a job posting link to start collecting skills.'}</p></div>}
@@ -199,4 +205,9 @@ function SkillStat({ label, value, caption }: { label: string; value: number; ca
 function formatDate(value: string) {
   if (!value) return '—'
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
+}
+
+function applicationPracticeQuestion(skill: JobSkill, index: number): PracticeQuestion {
+  const text = skill.interviewQuestions?.[index] ?? ''
+  return { id: JSON.stringify([skill.name, skill.evidence, index, text]), text, skillNames: [skill.name] }
 }

@@ -1,6 +1,6 @@
 # ChatGPT interview preparation handoff research
 
-Research for issue #30, checked 2026-10-05. This document proposes a future user-initiated flow; it does not implement a handoff or an OpenAI API integration.
+Research for issue #30, checked 2026-10-05. This research document proposed the user-initiated flow implemented in issue #48: a selected-question preview, explicit copying, and separate ChatGPT opening. No OpenAI API integration is used. The research and deferred desktop options below are retained for context.
 
 ## Recommendation
 

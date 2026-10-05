@@ -33,7 +33,10 @@ Run `npm test` and `npm run build` using Node.js 22.
 - Skills: existing component tests cover filtering, ranking, and rating callbacks;
   `App.rating-persistence.test.tsx` covers failed comfort-level saves and
   blocking overlapping updates. App integration suites cover application
-  navigation and persistence.
+  navigation and persistence. `PracticeHandoff.test.tsx` and page-specific handoff
+  tests cover selection isolation, optional context, preserved edits, clipboard
+  outcomes, cancellation/focus, and stale selections. `practicePrompt.test.ts`
+  covers exact deduplication, data boundaries, and complete-question batching.
 
 ## Database ownership checks
 
