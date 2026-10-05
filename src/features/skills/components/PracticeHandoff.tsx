@@ -53,12 +53,12 @@ export default function PracticeHandoff({ questions, company, roles, rolesByQues
       return next
     })
   } }}>
-    {children}
     {questions.length > 0 && <div className="practice-handoff-toolbar">
       <span>{selected.size} question{selected.size === 1 ? '' : 's'} selected for ChatGPT</span>
       <button ref={prepareButton} type="button" className="secondary-button" disabled={!selected.size} onClick={() => setOpen(true)}>Prepare ChatGPT prompt</button>
       {selected.size > 0 && <button type="button" className="text-button" onClick={() => setSelectedIds(new Set())}>Clear selection</button>}
     </div>}
+    {children}
     {open && selectedQuestions.length > 0 && <PromptPreview questions={selectedQuestions} company={company} roles={selectedRoles} onClose={close} />}
   </SelectionContext.Provider>
 }

@@ -47,7 +47,7 @@ The **CI / Build and test** check runs on pull requests targeting `main` and pus
 
 ### Practice selected questions in ChatGPT
 
-Open a skill's interview questions in Skills, or open company interview practice. Select the questions you want, then choose **Prepare ChatGPT prompt**. Application selections stay with that application; company practice combines only that company's questions. You can select across skills.
+Open a skill's interview questions in Skills, or open company interview practice. Select the questions you want, then choose **Prepare ChatGPT prompt** in the sticky bar at the top of the practice section. The bar stays visible while you scroll through its questions. Application selections stay with that application; company practice combines only that company's questions. You can select across skills.
 
 Review and edit the plain-text preview. Company and role context are optional and unchecked by default. If you change context, choose **Update preview**; if you have edited the text, **Replace edited preview** explicitly replaces those edits. Copying and opening are separate actions: choose **Copy prompt**, then **Open ChatGPT**, paste, review, and send there. Opening the link sends no prompt. Pasting and sending shares the text with OpenAI under your ChatGPT account's settings. The device clipboard may also retain copied text.
 
