@@ -21,9 +21,9 @@ describe('SkillsPage ChatGPT handoff', () => {
       application('first', [skill('React', 'First React question?'), skill('TypeScript', 'First types question?')]),
       application('second', [skill('React', 'Second application question?')]),
     ]))
-    fireEvent.click(screen.getByRole('button', { name: /React required/ }))
+    fireEvent.click(screen.getByRole('button', { name: /React.*Practice interview questions/ }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'First React question?' }))
-    fireEvent.click(screen.getByRole('button', { name: /TypeScript required/ }))
+    fireEvent.click(screen.getByRole('button', { name: /TypeScript.*Practice interview questions/ }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'First types question?' }))
     expect(screen.queryByText('Second application question?')).toBeNull()
     expect(screen.getByText('2 questions selected for ChatGPT')).toBeTruthy()
@@ -39,7 +39,7 @@ describe('SkillsPage ChatGPT handoff', () => {
   it('removes a selected question and its modal when analysis is replaced or invalidated', () => {
     const first = application('first', [skill('React', 'Old question?')])
     const { rerender } = render(view([first]))
-    fireEvent.click(screen.getByRole('button', { name: /React required/ }))
+    fireEvent.click(screen.getByRole('button', { name: /React.*Practice interview questions/ }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Old question?' }))
     fireEvent.click(screen.getByRole('button', { name: 'Prepare ChatGPT prompt' }))
     rerender(view([{ ...first, skills: [skill('React', 'New question?')] }]))

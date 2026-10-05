@@ -1,0 +1,29 @@
+.application-skill-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.application-skill-heading .skill-practice-toggle {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.application-skill-flags {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 65%;
+  flex-shrink: 0;
+}
+
+.application-skill-flags .company-skill-knowledge-level {
+  max-width: 100%;
+}
+
+.application-skill-flags .company-skill-knowledge-select:disabled {
+  cursor: wait;
+  opacity: .6;
+}
