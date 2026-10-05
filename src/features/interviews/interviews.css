@@ -1,0 +1,54 @@
+.interview-type-filters {
+  min-width: 0;
+  margin: 0 15px 15px;
+  padding: 12px 15px 15px;
+  border: 1px solid #e7e3fa;
+  border-radius: 8px;
+  background: #faf9ff;
+  color: #686678;
+  font-size: 11px;
+}
+
+.interview-type-filters legend {
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.interview-type-filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 15px;
+}
+
+.interview-type-filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  cursor: pointer;
+}
+
+.interview-type-filter-option input {
+  margin: 0;
+  accent-color: #6654d9;
+}
+
+.interview-type-filter-options .interview-type-filter-clear {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.interview-type-filter-option input:focus-visible,
+.interview-type-filter-clear:focus-visible {
+  outline: 2px solid #6654d9;
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .interview-type-filters {
+    margin-right: 10px;
+    margin-left: 10px;
+  }
+}
