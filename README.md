@@ -45,6 +45,14 @@ The **CI / Build and test** check runs on pull requests targeting `main` and pus
 - In the Skills page, choose a knowledge level for each skill: Low, Medium, High, or No study needed. Skills default to Low. Levels are stored per application skill and feed the existing study-priority ordering: lower levels sort first, while skills marked No study needed remain crossed out and sort last. Company interview practice groups skills across roles and moves skills marked No study needed for every associated role to the bottom. Use the knowledge-level dropdown in the company skill card's badge to set that skill's level for all associated roles at the company.
 - If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
 
+### Practice selected questions in ChatGPT
+
+Open a skill's interview questions in Skills, or open company interview practice. Select the questions you want, then choose **Prepare ChatGPT prompt**. Application selections stay with that application; company practice combines only that company's questions. You can select across skills.
+
+Review and edit the plain-text preview. Company and role context are optional and unchecked by default. If you change context, choose **Update preview**; if you have edited the text, **Replace edited preview** explicitly replaces those edits. Copying and opening are separate actions: choose **Copy prompt**, then **Open ChatGPT**, paste, review, and send there. Opening the link sends no prompt. Pasting and sending shares the text with OpenAI under your ChatGPT account's settings. The device clipboard may also retain copied text.
+
+If copying is unavailable or denied, select the preview and copy manually. Large selections use numbered batches aimed at 6,000 characters for easier copying; this is a Rolecall usability target, not a ChatGPT limit. Complete questions are never truncated. Cancel preserves the question selection; **Clear selection** removes it. Previews and selections stay in memory and are not saved or logged. No API keys or account connection are required.
+
 ### Add interviews to Google Calendar
 
 Save the interview schedule, then choose **Add to Google Calendar** from the schedule or upcoming interviews. Review the sharing notice and continue; Google opens a prefilled draft. Sign in to Google if asked, review the details, and click **Save** in Calendar. Rolecall does not request OAuth permissions, read your calendar, or store Google credentials. Interview details are sent to Google in the event URL only when you continue.
@@ -76,7 +84,7 @@ The function only accepts public HTTPS posting links, limits downloaded pages to
 
 ## Interview handoff research
 
-[ChatGPT interview handoff research](docs/chatgpt-interview-handoff.md) recommends a future selected-question preview, explicit clipboard copy, and separate ChatGPT opening. This document does not implement that handoff.
+[ChatGPT interview handoff research](docs/chatgpt-interview-handoff.md) records the recommendation behind the selected-question practice flow implemented for #48.
 
 ## How the pieces fit together
 

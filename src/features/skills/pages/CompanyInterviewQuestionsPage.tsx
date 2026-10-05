@@ -3,12 +3,15 @@ import { ArrowLeft, ChevronDown } from 'lucide-react'
 import type { Application, ComfortRating, JobSkill } from '../../../shared/types'
 import { NO_STUDY_PRIORITY, comfortRatings, getComfortRatingPriority, getSkillPriority, isComfortRating } from '../skillPriority'
 
+import PracticeHandoff, { PracticeQuestionChoice } from '../components/PracticeHandoff'
+
 type SkillQuestionGroup = {
   name: string
   category: JobSkill['category']
   priority: number
   roles: Map<string, number>
   questions: Map<string, string>
+  questionRoles: Map<string, Set<string>>
   applications: Map<string, { id: string; skillName: string }>
 }
 
@@ -19,6 +22,8 @@ export default function CompanyInterviewQuestionsPage({ company, applications, o
   onUpdateSkillComfortRating: (applicationId: string, skillName: string, comfortRating: ComfortRating) => Promise<boolean>
 }) {
   const groups = collectCompanyInterviewQuestions(applications, company)
+  const practiceQuestions = groups.flatMap((group) => [...group.questions.values()].map((text) => ({ id: JSON.stringify([group.name, text]), text, skillNames: [group.name] })))
+  const rolesByQuestionId = new Map(groups.flatMap((group) => [...group.questionRoles].map(([text, roles]) => [JSON.stringify([group.name, text]), [...roles]] as const)))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [failedUpdate, setFailedUpdate] = useState<{ skillName: string; rating: ComfortRating } | null>(null)
@@ -55,45 +60,47 @@ export default function CompanyInterviewQuestionsPage({ company, applications, o
     </section>
 
     <section className="list-panel company-questions-panel" aria-label={`${company} interview questions`}>
-      <div className="panel-heading"><div><h2>Questions by skill</h2><p>Questions are grouped across this company's analyzed applications.</p></div></div>
-      {error && <p className="auth-error" role="alert">{error}
-        {failedUpdate && <button type="button" className="text-button" disabled={saving} onClick={() => {
-          const group = groups.find((item) => normalizeSkillName(item.name) === normalizeSkillName(failedUpdate.skillName))
-          if (group) void updateKnowledgeLevel(group, failedUpdate.rating)
-          else {
-            setError('This skill is no longer available.')
-            setFailedUpdate(null)
-          }
-        }}>Retry saving</button>}
-      </p>}
-      {saving && <p className="company-skill-roles" role="status">Saving knowledge level…</p>}
-      {groups.length
-        ? <div className="company-questions-list">{groups.map((group) => <article className={`company-skill-questions${group.priority === NO_STUDY_PRIORITY ? ' company-skill-no-study' : ''}`} key={normalizeSkillName(group.name)}>
-          <div className="company-skill-heading">
-            <div><h3>{group.name}</h3><span className="analyzed-skill-meta">{group.category}</span></div>
-            <label className="company-skill-knowledge-level" title="Change the knowledge level for all roles with this skill at this company.">
-              <span>Knowledge level:</span>
-              <select
-                className="company-skill-knowledge-select"
-                aria-label={`Knowledge level for ${group.name}`}
-                value={comfortRatings.find((rating) => getComfortRatingPriority(rating.value) === group.priority)?.value ?? 'low'}
-                disabled={saving}
-                onChange={(event) => {
-                  if (isComfortRating(event.target.value)) void updateKnowledgeLevel(group, event.target.value)
-                }}
-              >
-                {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
-              </select>
-              <ChevronDown size={11} aria-hidden="true" />
-            </label>
-          </div>
-          {group.roles.size > 0 && <p className="company-skill-roles">Roles: {[...group.roles].map(([role, priority]) => `${role} (${priority})`).join(', ')}</p>}
-          <ol>{[...group.questions.values()].map((question) => <li key={question}>{question}</li>)}</ol>
-        </article>)}</div>
-        : <div className="company-questions-empty" role="status">
-          <h3>No interview questions available yet</h3>
-          <p>Analyze a job posting for {company} to generate interview questions for its skills.</p>
-        </div>}
+      <PracticeHandoff key={normalizeSkillName(company)} questions={practiceQuestions} company={company} roles={[]} rolesByQuestionId={rolesByQuestionId}>
+        <div className="panel-heading"><div><h2>Questions by skill</h2><p>Questions are grouped across this company's analyzed applications.</p></div></div>
+        {error && <p className="auth-error" role="alert">{error}
+          {failedUpdate && <button type="button" className="text-button" disabled={saving} onClick={() => {
+            const group = groups.find((item) => normalizeSkillName(item.name) === normalizeSkillName(failedUpdate.skillName))
+            if (group) void updateKnowledgeLevel(group, failedUpdate.rating)
+            else {
+              setError('This skill is no longer available.')
+              setFailedUpdate(null)
+            }
+          }}>Retry saving</button>}
+        </p>}
+        {saving && <p className="company-skill-roles" role="status">Saving knowledge level…</p>}
+        {groups.length
+          ? <div className="company-questions-list">{groups.map((group) => <article className={`company-skill-questions${group.priority === NO_STUDY_PRIORITY ? ' company-skill-no-study' : ''}`} key={normalizeSkillName(group.name)}>
+            <div className="company-skill-heading">
+              <div><h3>{group.name}</h3><span className="analyzed-skill-meta">{group.category}</span></div>
+              <label className="company-skill-knowledge-level" title="Change the knowledge level for all roles with this skill at this company.">
+                <span>Knowledge level:</span>
+                <select
+                  className="company-skill-knowledge-select"
+                  aria-label={`Knowledge level for ${group.name}`}
+                  value={comfortRatings.find((rating) => getComfortRatingPriority(rating.value) === group.priority)?.value ?? 'low'}
+                  disabled={saving}
+                  onChange={(event) => {
+                    if (isComfortRating(event.target.value)) void updateKnowledgeLevel(group, event.target.value)
+                  }}
+                >
+                  {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
+                </select>
+                <ChevronDown size={11} aria-hidden="true" />
+              </label>
+            </div>
+            {group.roles.size > 0 && <p className="company-skill-roles">Roles: {[...group.roles].map(([role, priority]) => `${role} (${priority})`).join(', ')}</p>}
+            <ol>{[...group.questions.values()].map((question) => <li key={question}><PracticeQuestionChoice question={{ id: JSON.stringify([group.name, question]), text: question, skillNames: [group.name] }} /></li>)}</ol>
+          </article>)}</div>
+          : <div className="company-questions-empty" role="status">
+            <h3>No interview questions available yet</h3>
+            <p>Analyze a job posting for {company} to generate interview questions for its skills.</p>
+          </div>}
+      </PracticeHandoff>
     </section>
     <footer className="page-footer">Made for the long game <span>✳</span></footer>
   </>
@@ -111,7 +118,7 @@ export function collectCompanyInterviewQuestions(applications: Application[], co
       if (!key) continue
       let group = groups.get(key)
       if (!group) {
-        group = { name: skill.name, category: skill.category, priority: NO_STUDY_PRIORITY, roles: new Map(), questions: new Map(), applications: new Map() }
+        group = { name: skill.name, category: skill.category, priority: NO_STUDY_PRIORITY, roles: new Map(), questions: new Map(), questionRoles: new Map(), applications: new Map() }
         groups.set(key, group)
       }
       group.applications.set(application.id, {
@@ -127,9 +134,14 @@ export function collectCompanyInterviewQuestions(applications: Application[], co
       }
       const questions = skill.interviewQuestions ?? []
       for (const question of questions) {
-        const text = question.trim()
-        const questionKey = normalizeSkillName(text)
-        if (text && questionKey && !group.questions.has(questionKey)) group.questions.set(questionKey, text)
+        // Preserve the selected text exactly; only exact duplicates are combined.
+        if (!question.trim()) continue
+        if (!group.questions.has(question)) group.questions.set(question, question)
+        if (role) {
+          const questionRoles = group.questionRoles.get(question) ?? new Set<string>()
+          questionRoles.add(role)
+          group.questionRoles.set(question, questionRoles)
+        }
       }
     }
   }
