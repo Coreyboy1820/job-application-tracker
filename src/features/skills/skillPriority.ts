@@ -46,3 +46,11 @@ export function getSkillPriority(skill: Pick<JobSkill, 'comfortRating' | 'needsN
     ? NO_STUDY_PRIORITY
     : getComfortRatingPriority(getComfortRating(skill))
 }
+
+export function sortSkillsForStudy(skills: readonly JobSkill[]): JobSkill[] {
+  const studyOrder = (skill: JobSkill) => {
+    const priority = getSkillPriority(skill)
+    return priority === NO_STUDY_PRIORITY ? Number.POSITIVE_INFINITY : priority
+  }
+  return [...skills].sort((a, b) => studyOrder(a) - studyOrder(b))
+}

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ArrowUpRight, BriefcaseBusiness, ChevronDown, Search, Sparkles } from 'lucide-react'
 import type { Application, ComfortRating, JobSkill } from '../../../shared/types'
-import { comfortRatings, getComfortRating, NO_STUDY_PRIORITY, getSkillPriority, isComfortRating } from '../skillPriority'
+import { comfortRatings, getComfortRating, NO_STUDY_PRIORITY, getSkillPriority, isComfortRating, sortSkillsForStudy } from '../skillPriority'
 
 type ImportanceFilter = 'All' | JobSkill['importance']
 
@@ -77,7 +77,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
     </section>
 
     <section className="list-panel skills-library">
-      <div className="panel-heading"><div><h2>Skills by application</h2><p>Each skill includes the job-posting quote that supports it.</p></div>{!applicationFilterId && <span className="cloud-badge">Synced to your account</span>}</div>
+      <div className="panel-heading"><div><h2>Skills by application</h2><p>Lowest knowledge levels come first; no-study skills remain visible at the end.</p></div>{!applicationFilterId && <span className="cloud-badge">Synced to your account</span>}</div>
       <div className="skills-toolbar">
         <label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search skills and roles…" /></label>
         <div className="skills-filter" role="group" aria-label="Filter by importance">
@@ -90,7 +90,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
           const isAnalyzed = Boolean(application.skillsAnalyzedAt && application.skillsSourceUrl === application.url)
           const isCollapsed = collapsedApplications.has(application.id)
           const applicationContentId = `skills-application-content-${application.id}`
-          const skills = (application.skills ?? []).filter((skill) => importance === 'All' || skill.importance === importance)
+          const skills = sortSkillsForStudy((application.skills ?? []).filter((skill) => importance === 'All' || skill.importance === importance))
           return <article className="skills-application" key={application.id}>
             <header className="skills-application-header">
               <div className="skills-company-mark"><BriefcaseBusiness size={16} /></div>
