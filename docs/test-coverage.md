@@ -29,7 +29,7 @@ Run `npm test` and `npm run build` using Node.js 22.
   user ratings, splitting skills, and question normalization.
 - Interview schedule and Google Calendar: component and App integration suites
   cover editing, validation, schedule persistence, calendar launch markers, pending
-  saves, and calendar links. Interview filtering has its own component coverage.
+  saves, and calendar links.
 - Skills: existing component tests cover filtering, ranking, and rating callbacks;
   `App.rating-persistence.test.tsx` covers failed comfort-level saves and
   blocking overlapping updates. App integration suites cover application
