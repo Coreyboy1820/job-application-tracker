@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { X } from 'lucide-react'
 import type { Application, Interview } from '../../../shared/types'
-import { interviewTypes, getInterviewTypeGroup } from '../interviewTypes'
 import GoogleCalendarButton from './GoogleCalendarButton'
 import { formatInterviewDateTime, getInterviewTimestamp, isValidInterviewDateTime } from '../interviewDates'
 
@@ -18,7 +17,6 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
   const [time, setTime] = useState('')
   const [notes, setNotes] = useState('')
   const [type, setType] = useState('')
-  const [customType, setCustomType] = useState('')
   const [location, setLocation] = useState('')
   const [meetingLink, setMeetingLink] = useState('')
   const [durationMinutes, setDurationMinutes] = useState('60')
@@ -40,7 +38,6 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
     setTime('')
     setNotes('')
     setType('')
-    setCustomType('')
     setLocation('')
     setMeetingLink('')
     setDurationMinutes('60')
@@ -71,7 +68,7 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
     }
     const interview: Interview = {
       ...interviews.find((item) => item.id === editingId),
-      type: type === 'Other' ? customType.trim() || 'Other' : type.trim(), location: location.trim(), meetingLink: meetingLink.trim(), durationMinutes: duration,
+      type: type.trim(), location: location.trim(), meetingLink: meetingLink.trim(), durationMinutes: duration,
       id: editingId ?? crypto.randomUUID(),
       date,
       time,
@@ -88,9 +85,7 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
     setDate(interview.date)
     setTime(interview.time)
     setNotes(interview.notes)
-    const group = getInterviewTypeGroup(interview.type)
-    setType(group === 'Not specified' ? '' : group === 'Other' ? 'Other' : interview.type ?? '')
-    setCustomType(group === 'Other' ? interview.type ?? '' : '')
+    setType(interview.type ?? '')
     setLocation(interview.location ?? '')
     setMeetingLink(interview.meetingLink ?? '')
     setDurationMinutes(String(interview.durationMinutes ?? 60))
@@ -158,16 +153,7 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
           <div className="form-grid">
             <label className="field"><span>Date <i>*</i></span><input type="date" required value={date} onChange={(event) => setDate(event.target.value)} disabled={saving} /></label>
             <label className="field"><span>Start time <i>*</i></span><input type="time" required value={time} onChange={(event) => setTime(event.target.value)} disabled={saving} /></label>
-            <label className="field"><span>Interview type</span><select value={type} onChange={(event) => {
-              setType(event.target.value)
-              setCustomType('')
-            }} disabled={saving}>
-              <option value="">Not specified</option>
-              {interviewTypes.map((option) => <option key={option} value={option}>{option}</option>)}
-              {type && type !== 'Other' && !interviewTypes.some((option) => option === type) && <option value={type}>{type}</option>}
-              <option value="Other">Other</option>
-            </select></label>
-            {type === 'Other' && <label className="field"><span>Custom interview type</span><input value={customType} onChange={(event) => setCustomType(event.target.value)} placeholder="Optional custom type" disabled={saving} /></label>}
+            <label className="field"><span>Interview type</span><input value={type} onChange={(event) => setType(event.target.value)} placeholder="Technical, screening, onsite…" disabled={saving} /></label>
             <label className="field"><span>Duration (minutes)</span><input type="number" min={15} max={480} step={1} required value={durationMinutes} onChange={(event) => setDurationMinutes(event.target.value)} disabled={saving} /></label>
             <label className="field field-full"><span>Interview location</span><input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Optional office or room" disabled={saving} /></label>
             <label className="field field-full"><span>Meeting link</span><input value={meetingLink} onChange={(event) => setMeetingLink(event.target.value)} placeholder="https://…" disabled={saving} /></label>
