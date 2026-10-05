@@ -104,3 +104,5 @@ All paths below are relative to `src/` unless prefixed with `supabase/`.
 Tests are grouped by scope: pure functions, routing hook checks, and Edge Function helper tests in `unit`, isolated UI in `components`, and application orchestration with mocked Supabase in `integration`. Server helper tests may import from `supabase/functions/` without moving production server code into the browser tree. Use `npx vitest run src/test/unit/skillPriority.test.ts` for a focused run.
 
 This refactor supplies the directory groundwork for [#41](https://github.com/Coreyboy1820/job-application-tracker/issues/41). The wider audit and additional coverage of untested major features remain part of that issue. No database migration, Supabase function deployment, or visible UI change is required for the structure change.
+
+Next-interview ordering uses `features/applications/applicationSort.ts` from application orchestration and the Skills page. It imports the pure interview date utility to validate dates consistently; this is a domain-data dependency, with no UI import or reverse dependency. Application sorting and within-application study ordering remain separate.
