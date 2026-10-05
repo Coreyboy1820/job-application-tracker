@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../../app/App'
 import { SKILL_EXTRACTION_VERSION } from '../../../supabase/functions/analyze-job-posting/analysis-version'
@@ -81,6 +81,8 @@ describe('versioned job skill extraction in the application UI', () => {
     expect(within(dialog).queryByText('debugging tools')).toBeNull()
     fireEvent.click(within(dialog).getByRole('button', { name: 'View skills' }))
 
+    expect(screen.queryByRole('link', { name: 'Other Company' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show all skills' }))
     const acme = (await screen.findByRole('link', { name: 'Acme' })).closest('article')!
     const other = screen.getByRole('link', { name: 'Other Company' }).closest('article')!
     for (const name of ['GDB', 'JTAG', 'serial debugging']) {
@@ -106,4 +108,23 @@ describe('versioned job skill extraction in the application UI', () => {
     expect(await screen.findByRole('dialog', { name: 'Acme' })).toBeTruthy()
     expect(mocks.invoke).not.toHaveBeenCalled()
   })
+  it('ignores an old analysis error whose response body arrives after reopening the application', async () => {
+    configureApplications(0)
+    let finishBody!: (value: { error: string }) => void
+    const response = new Response('{}', { status: 502 })
+    vi.spyOn(response, 'json').mockImplementationOnce(() => new Promise((resolve) => { finishBody = resolve }))
+    mocks.invoke.mockResolvedValueOnce({ data: null, error: { message: 'Old failure', context: response } })
+    const dialog = await openAcme()
+    await waitFor(() => expect(response.json).toHaveBeenCalled())
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close application details' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Skills/ }))
+    const article = (await screen.findByRole('link', { name: 'Acme' })).closest('article')!
+    fireEvent.click(within(article).getByRole('button', { name: 'Open application' }))
+    const reopened = await screen.findByRole('dialog', { name: 'Acme' })
+    await within(reopened).findByText('3 skills found')
+    await act(async () => finishBody({ error: 'Stale analysis error' }))
+    expect(within(reopened).queryByText('Stale analysis error')).toBeNull()
+    expect(within(reopened).getByText('3 skills found')).toBeTruthy()
+  })
+
 })

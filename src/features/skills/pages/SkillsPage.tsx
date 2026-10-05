@@ -1,13 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ArrowUpRight, BriefcaseBusiness, ChevronDown, Search, Sparkles } from 'lucide-react'
 import type { Application, ComfortRating, JobSkill } from '../../../shared/types'
 import { comfortRatings, getComfortRating, NO_STUDY_PRIORITY, getSkillPriority, isComfortRating, sortSkillsForStudy } from '../skillPriority'
 
+import { sortApplications } from '../../applications/applicationSort'
+import type { ApplicationSort } from '../../applications/applicationSort'
+
 type ImportanceFilter = 'All' | JobSkill['importance']
 
-export default function SkillsPage({ applications, loading, onOpenApplication, onOpenCompany, onOpenApplicationSkills, applicationFilterId, onClearApplicationFilter, onUpdateSkillComfortRating }: {
+export default function SkillsPage({ applications, loading, now = Date.now(), onOpenApplication, onOpenCompany, onOpenApplicationSkills, applicationFilterId, onClearApplicationFilter, onUpdateSkillComfortRating }: {
   applications: Application[]
   loading: boolean
+  now?: number
   onOpenApplication: (id: string) => void
   onOpenCompany: (company: string) => void
   onOpenApplicationSkills: (id: string) => void
@@ -15,7 +19,11 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
   onClearApplicationFilter: () => void
   onUpdateSkillComfortRating: (applicationId: string, skillName: string, comfortRating: ComfortRating) => Promise<boolean>
 }) {
+  const savingIds = useRef(new Set<string>())
+  const [savingApplications, setSavingApplications] = useState(new Set<string>())
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [applicationSort, setApplicationSort] = useState<ApplicationSort>('saved')
   const [importance, setImportance] = useState<ImportanceFilter>('All')
   const [collapsedApplications, setCollapsedApplications] = useState<Set<string>>(() => new Set())
   const [selectedSkill, setSelectedSkill] = useState<{ applicationId: string; skillName: string } | null>(null)
@@ -31,7 +39,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
 
   const filteredApplications = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return scopedApplications.filter((application) => {
+    return sortApplications(scopedApplications.filter((application) => {
       const skills = application.skills ?? []
       const hasMatchingImportance = importance === 'All'
         || skills.some((skill) => skill.importance === importance)
@@ -44,8 +52,23 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
         ...skills.flatMap((skill) => [skill.name, skill.category, skill.importance, skill.evidence]),
       ].join(' ').toLowerCase()
       return hasMatchingImportance && (!query || searchableText.includes(query))
-    })
-  }, [scopedApplications, importance, search])
+    }), applicationSort, now)
+  }, [scopedApplications, importance, search, applicationSort, now])
+
+  async function updateKnowledge(applicationId: string, skillName: string, rating: ComfortRating) {
+    if (savingIds.current.has(applicationId)) return
+    savingIds.current.add(applicationId)
+    setSavingApplications(new Set(savingIds.current))
+    setSaveError(null)
+    try {
+      await onUpdateSkillComfortRating(applicationId, skillName, rating)
+    } catch {
+      setSaveError('Could not save the knowledge level. Please retry.')
+    } finally {
+      savingIds.current.delete(applicationId)
+      setSavingApplications(new Set(savingIds.current))
+    }
+  }
 
   function toggleApplication(applicationId: string) {
     setCollapsedApplications((current) => {
@@ -76,10 +99,12 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
       <SkillStat label="Preferred skills" value={allSkills.filter((skill) => skill.importance === 'preferred').length} caption="Marked as preferred" />
     </section>
 
+    {saveError && <p className="auth-error" role="alert">{saveError}</p>}
     <section className="list-panel skills-library">
       <div className="panel-heading"><div><h2>Skills by application</h2><p>Lowest knowledge levels come first; no-study skills remain visible at the end.</p></div>{!applicationFilterId && <span className="cloud-badge">Synced to your account</span>}</div>
       <div className="skills-toolbar">
         <label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search skills and roles…" /></label>
+        <label className="sort-control"><span className="sr-only">Sort skill applications</span><select value={applicationSort} onChange={(event) => setApplicationSort(event.target.value as ApplicationSort)}><option value="saved">Saved order</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="next-interview">Next interview</option></select></label>
         <div className="skills-filter" role="group" aria-label="Filter by importance">
           {(['All', 'required', 'preferred', 'mentioned'] as const).map((item) => <button key={item} type="button" className={importance === item ? 'skills-filter-active' : ''} aria-pressed={importance === item} onClick={() => setImportance(item)}>{item === 'All' ? item : `${item[0].toUpperCase()}${item.slice(1)}`}</button>)}
         </div>
@@ -112,6 +137,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
               </div>
             </header>
             <div id={applicationContentId} hidden={isCollapsed}>
+              {savingApplications.has(application.id) && <p className="company-skill-roles" role="status">Saving knowledge level…</p>}
               {isAnalyzed ? <>
                 {skills.length ? <div className="skills-library-grid">{skills.map((skill, index) => {
                   const isSelected = selectedSkill?.applicationId === application.id && selectedSkill.skillName === skill.name
@@ -136,9 +162,10 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
                       <select
                         aria-label={`Knowledge level for ${skill.name}`}
                         value={getComfortRating(skill)}
+                        disabled={savingApplications.has(application.id)}
                         onChange={(event) => {
                           if (isComfortRating(event.target.value)) {
-                            void onUpdateSkillComfortRating(application.id, skill.name, event.target.value)
+                            void updateKnowledge(application.id, skill.name, event.target.value)
                           }
                         }}
                       >
