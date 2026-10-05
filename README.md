@@ -92,3 +92,7 @@ See [the architecture decision](docs/architecture.md) for the alternatives, modu
 
 Supabase Auth identifies the user. Every application row has a `user_id`; the database enforces ownership even if a browser client is modified. The publishable key is safe to include in the frontend only because the table grants and RLS policies are restrictive. User data is no longer written to local storage, aside from the one-time import marker and the legacy records kept for import.
 
+
+## Interview handoff research
+
+[ChatGPT interview handoff research](docs/chatgpt-interview-handoff.md) recommends a future selected-question preview, explicit clipboard copy, and separate ChatGPT opening. This document does not implement that handoff.
