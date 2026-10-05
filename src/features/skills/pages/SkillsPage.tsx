@@ -22,7 +22,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
   const scopedApplications = applicationFilterId
     ? applications.filter((application) => application.id === applicationFilterId)
     : applications
-  const selectedApplication = scopedApplications[0]
+  const selectedApplication = applicationFilterId ? scopedApplications[0] : undefined
   const analyzedApplications = scopedApplications.filter((application) =>
     application.skillsAnalyzedAt && application.skillsSourceUrl === application.url,
   )
@@ -158,7 +158,7 @@ export default function SkillsPage({ applications, loading, onOpenApplication, o
             </div>
           </article>
         })}
-      </div> : <div className="empty-state"><div className="empty-illustration"><Sparkles size={20} /></div><h3>{applications.length ? 'No matching skills' : 'No applications yet'}</h3><p>{applications.length ? 'Try a different search or importance filter.' : 'Add an application with a job posting link to start collecting skills.'}</p></div>}
+      </div> : <div className="empty-state"><div className="empty-illustration"><Sparkles size={20} /></div><h3>{applicationFilterId && !selectedApplication ? 'Application unavailable' : applications.length ? 'No matching skills' : 'No applications yet'}</h3><p>{applicationFilterId && !selectedApplication ? 'This application may have been deleted. Choose Show all skills to return to your library.' : applications.length ? 'Try a different search or importance filter.' : 'Add an application with a job posting link to start collecting skills.'}</p></div>}
       <div className="panel-footer"><span>Showing <strong>{filteredApplications.length}</strong> of <strong>{scopedApplications.length}</strong> applications</span><span className="privacy-note"><span className="privacy-dot" /> Stored securely in your account</span></div>
     </section>
     <footer className="page-footer">Made for the long game <span>✳</span></footer>

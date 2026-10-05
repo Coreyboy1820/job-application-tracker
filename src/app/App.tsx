@@ -523,7 +523,7 @@ function App() {
         onClose={() => { setSelectedApplicationId(null); setAnalysis(null) }}
         onRetry={() => setAnalysisAttempt((attempt) => attempt + 1)}
         onUpdateUrl={updateApplicationUrl}
-        onViewSkills={() => { setSelectedApplicationId(null); setAnalysis(null); navigateTo('skills') }}
+        onViewSkills={() => { setSelectedApplicationId(null); setAnalysis(null); openApplicationSkills(selectedApplication.id) }}
       />}
     </div>
   )
