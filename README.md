@@ -38,10 +38,10 @@ The **CI / Build and test** check runs on pull requests targeting `main` and pus
 
 - Create an account or sign in with email and password.
 - Add an application with its company, role, status, date, posting link, notes, and next step.
-- Schedule, edit, and remove multiple interview rounds for each application.
+- Schedule, edit, and remove multiple interview rounds for each application. Choose an interview type or use Other for custom text; filter the Interviews agenda by one or more types and clear filters to show all interviews.
 - View upcoming interviews in chronological order from the Interviews page; open any interview to return to its application.
-- Search, filter, sort, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
-- Click a company or role to open its details and analyze its saved job posting link. Rolecall reads the page, asks an AI model to identify stated skills, and saves the description, evidence, and skill list to that application. Results are cached for the link and reused when you open the application again. Use **View skills** in the details to go to the Skills page.
+- Choose newest, oldest, or next-interview ordering in Applications and Skills; jobs without future interviews appear last in next-interview order. Search, filter, update statuses, and delete applications. Changes are stored in Supabase and appear on devices using the same app and account.
+- Click a company or role to open its details and analyze its saved job posting link. Rolecall reads the page, asks an AI model to identify stated skills, and saves the description, evidence, and skill list to that application. Results are cached for the link and reused when you open the application again. Use **View skills** in the details to show only that application’s skills; **Show all skills** returns to the library.
 - In the Skills page, choose a knowledge level for each skill: Low, Medium, High, or No study needed. Skills default to Low. Levels are stored per application skill and feed the existing study-priority ordering: lower levels sort first, while skills marked No study needed remain crossed out and sort last. Company interview practice groups skills across roles and moves skills marked No study needed for every associated role to the bottom. Use the knowledge-level dropdown in the company skill card's badge to set that skill's level for all associated roles at the company.
 - If this browser has records from the earlier local-storage or IndexedDB versions, Rolecall offers to copy them into your account after sign-in. The original browser copy is kept.
 
@@ -92,3 +92,9 @@ See [the architecture decision](docs/architecture.md) for the alternatives, modu
 
 Supabase Auth identifies the user. Every application row has a `user_id`; the database enforces ownership even if a browser client is modified. The publishable key is safe to include in the frontend only because the table grants and RLS policies are restrictive. User data is no longer written to local storage, aside from the one-time import marker and the legacy records kept for import.
 
+
+## Test coverage and interview handoff research
+
+See [test coverage and local database checks](docs/test-coverage.md) for the coverage inventory and isolated RLS check commands. The job-analysis request handler is tested with injected network and database boundaries; redeploy `analyze-job-posting` when shipping its extraction into `handler.ts`. No schema migration is needed.
+
+[ChatGPT interview handoff research](docs/chatgpt-interview-handoff.md) recommends a future selected-question preview, explicit clipboard copy, and separate ChatGPT opening. This release does not implement that handoff.
