@@ -74,6 +74,10 @@ For local Edge Function development, put `GEMINI_API_KEY=your-key` in `supabase/
 
 The function only accepts public HTTPS posting links, limits downloaded pages to 2 MB, checks each redirect, and checks that DNS resolves to public addresses. Some job boards require a signed-in browser session, generate the page with JavaScript, or block automated requests; those pages show an error and can be retried after updating the link. Job description text is sent to Google's Gemini API for extraction, and the stored response includes short quotes as evidence for each skill. Set the optional `GEMINI_MODEL` function secret to override the default model.
 
+## Interview handoff research
+
+[ChatGPT interview handoff research](docs/chatgpt-interview-handoff.md) recommends a future selected-question preview, explicit clipboard copy, and separate ChatGPT opening. This document does not implement that handoff.
+
 ## How the pieces fit together
 
 - `src/main.tsx` starts React and imports `src/styles/styles.css`; `src/app/App.tsx` imports `src/styles/cloud.css`.
