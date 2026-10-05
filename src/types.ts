@@ -22,6 +22,11 @@ export type Interview = {
   date: string
   time: string
   notes: string
+  type?: string
+  location?: string
+  meetingLink?: string
+  durationMinutes?: number
+  googleCalendarOpenedAt?: string
 }
 
 export type Application = {
@@ -39,5 +44,6 @@ export type Application = {
   skills?: JobSkill[]
   skillsAnalyzedAt?: string | null
   skillsSourceUrl?: string
+  skillExtractionVersion?: number
   interviewQuestionsVersion?: number
 }

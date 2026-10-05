@@ -1,0 +1,1 @@
+export const SKILL_EXTRACTION_VERSION = 1

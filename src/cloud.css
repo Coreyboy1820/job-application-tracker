@@ -28,3 +28,5 @@
 .company-skill-knowledge-level{display:inline-flex;align-items:center;gap:3px}.company-skill-knowledge-select{appearance:none;border:0;background:transparent;color:inherit;font:inherit;padding:0;min-width:0;max-width:100%;cursor:pointer}.company-skill-knowledge-select:focus-visible{outline:2px solid #7668cc;outline-offset:2px;border-radius:2px}.company-skill-knowledge-level svg{flex:none;pointer-events:none}
 
 .company-skill-no-study .company-skill-heading>div,.company-skill-no-study .company-skill-roles,.company-skill-no-study>ol{text-decoration:line-through}
+
+.calendar-agenda-row{display:grid;gap:4px}.calendar-action{max-width:100%;font-size:11px}.calendar-action>p,.calendar-confirmation p{line-height:1.5;color:#6e7082;margin:8px 0;overflow-wrap:anywhere}.calendar-confirmation{padding:10px 12px;border:1px solid #e8e5f8;border-radius:8px;background:#faf9ff}.calendar-action [role=alert]{color:#a33b48}.calendar-action .text-button:disabled{opacity:.55;cursor:not-allowed}
