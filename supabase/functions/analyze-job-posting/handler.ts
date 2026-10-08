@@ -159,37 +159,95 @@ export function createHandler(deps: HandlerDependencies) {
       .split('\n').map((line) => line.trim()).filter(Boolean).join('\n')
   }
 
-  async function fetchJobDescription(rawUrl: string): Promise<{ text: string; sourceUrl: string }> {
+  // All provider requests share the posting's deadline and the same network guards.
+  async function fetchPostingResource(rawUrl: string, accept: string, signal: AbortSignal, provider = false) {
     let url = await validatePublicHttpsUrl(rawUrl)
+    for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'RolecallJobSkillsBot/1.0 (+job application tracker)', Accept: accept },
+        redirect: 'manual',
+        signal,
+      })
+      if (response.status < 300 || response.status >= 400) return { response, url }
+      const location = response.headers.get('location')
+      await response.body?.cancel()
+      if (!location || redirectCount === 3) throw new Error('The job posting redirected too many times to follow safely.')
+      url = await validatePublicHttpsUrl(new URL(location, url).toString())
+      if (provider && (url.hostname !== 'boards-api.greenhouse.io' || url.port)) {
+        throw new Error('Greenhouse redirected outside its supported public API. Try the employer’s current job link.')
+      }
+    }
+    throw new Error('The job board did not return a response.')
+  }
+
+  function ziplineJobId(url: URL): string | null {
+    if (url.hostname !== 'www.zipline.com' && url.hostname !== 'zipline.com') return null
+    const path = url.pathname.match(/^\/open-roles\/([1-9]\d{0,15})\/?$/)
+    if (!path || url.port) throw new Error('Use a Zipline job detail link with a valid numeric job ID.')
+    const ids = url.searchParams.getAll('gh_jid')
+    if (ids.length > 1 || (ids.length === 1 && ids[0] !== path[1])) {
+      throw new Error('The Zipline job ID in the link does not match the posting. Copy the current employer job link.')
+    }
+    return path[1]
+  }
+
+  async function greenhouseDescription(jobId: string, signal: AbortSignal): Promise<string> {
+    // Verified from Zipline's published embed integration; never derive boards from
+    // company names, query parameters, arbitrary scripts, or URLs in fetched HTML.
+    const endpoint = `https://boards-api.greenhouse.io/v1/boards/flyzipline/jobs/${jobId}?content=true`
+    const { response } = await fetchPostingResource(endpoint, 'application/json', signal, true)
+    if (response.status === 404 || response.status === 410) {
+      throw new Error('This Zipline job is no longer available on Greenhouse. Check the employer’s current openings.')
+    }
+    if (response.status === 429) throw new Error('Greenhouse is rate limiting job requests. Please retry later.')
+    if (!response.ok) throw new Error(`Greenhouse returned HTTP ${response.status}. Please retry later or check the employer’s job link.`)
+    if (!/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? '')) {
+      throw new Error('Greenhouse did not return a supported job response. Please retry later.')
+    }
+    const body = await readLimitedBody(response)
+    let job: Record<string, unknown>
+    try {
+      const parsed: unknown = JSON.parse(body)
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error()
+      job = parsed as Record<string, unknown>
+    } catch {
+      throw new Error('Greenhouse returned an invalid job response. Please retry later.')
+    }
+    let canonical: URL
+    try { canonical = new URL(String(job.absolute_url)) } catch {
+      throw new Error('Greenhouse could not verify the employer job link.')
+    }
+    if (String(job.id) !== jobId || canonical.protocol !== 'https:' || canonical.username || canonical.password
+      || ziplineJobId(canonical) !== jobId || typeof job.content !== 'string') {
+      throw new Error('Greenhouse returned a different or incomplete posting. Copy the current employer job link.')
+    }
+    // Greenhouse content is entity-encoded HTML, unlike a regular HTML page.
+    return htmlToText(decodeEntities(job.content)).slice(0, maxDescriptionChars)
+  }
+
+  async function fetchJobDescription(rawUrl: string): Promise<{ text: string; sourceUrl: string }> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 12_000)
     try {
-      let response: Response | undefined
-      for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
-        response = await fetch(url, {
-          headers: { 'User-Agent': 'RolecallJobSkillsBot/1.0 (+job application tracker)', Accept: 'text/html,application/xhtml+xml' },
-          redirect: 'manual',
-          signal: controller.signal,
-        })
-        if (response.status < 300 || response.status >= 400) break
-        const location = response.headers.get('location')
-        if (!location || redirectCount === 3) throw new Error('The job posting redirected too many times to follow safely.')
-        await response.body?.cancel()
-        url = await validatePublicHttpsUrl(new URL(location, url).toString())
-      }
-      if (!response) throw new Error('The job board did not return a response.')
+      const { response, url } = await fetchPostingResource(rawUrl, 'text/html,application/xhtml+xml', controller.signal)
       if (!response.ok) throw new Error(`The job board returned HTTP ${response.status}. It may require a browser session.`)
       if (!/text\/html|application\/xhtml\+xml/i.test(response.headers.get('content-type') ?? '')) {
         throw new Error('The saved link did not return an HTML job posting.')
       }
       const html = await readLimitedBody(response)
       const structured = jobPostingDescriptions(html).map(htmlToText).filter(Boolean)
-      const general = htmlToText(html)
-      const text = [...new Set([...structured, general])].join('\n\n').slice(0, maxDescriptionChars)
+      const embedded = /greenhouse[-_]embed|boards\.greenhouse\.io\/embed\/job_app/i.test(html)
+      const jobId = embedded ? ziplineJobId(url) : null
+      const hasStructuredDescription = structured.some((text) => text.replace(/\s/g, '').length >= 300)
+      const text = jobId && !hasStructuredDescription
+        ? await greenhouseDescription(jobId, controller.signal)
+        : [...new Set([...structured, htmlToText(html)])].join('\n\n').slice(0, maxDescriptionChars)
       if (text.replace(/\s/g, '').length < 300) {
-        throw new Error('The job board did not provide readable posting text. It may require a browser session or block automated access.')
+        throw new Error(embedded
+          ? 'This embedded job board is not supported or did not provide readable posting text. Try a direct public job posting link.'
+          : 'The job board did not provide readable posting text. It may require a browser session or block automated access.')
       }
-      return { text, sourceUrl: url.toString() }
+      return { text, sourceUrl: rawUrl }
     } finally {
       clearTimeout(timeout)
     }

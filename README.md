@@ -108,3 +108,5 @@ Supabase Auth identifies the user. Every application row has a `user_id`; the da
 ## Test coverage
 
 See [test coverage and local database checks](docs/test-coverage.md) for the coverage inventory and isolated RLS check commands. The job-analysis request handler is tested with injected network and database boundaries; redeploy `analyze-job-posting` when shipping its extraction into `handler.ts`. No schema migration is needed.
+
+Employer-hosted Zipline/Greenhouse posting support and deployment details: [Greenhouse posting adapter](docs/greenhouse-postings.md).
