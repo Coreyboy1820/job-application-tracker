@@ -18,18 +18,27 @@ export function PracticeQuestionChoice({ question }: { question: PracticeQuestio
   </label>
 }
 
-export default function PracticeHandoff({ questions, company, roles, rolesByQuestionId, children }: {
+export default function PracticeHandoff({ questions, company, roles, rolesByQuestionId, visibleQuestionIds, children }: {
   questions: PracticeQuestion[]
-  company: string
-  roles: string[]
+  company?: string
+  roles?: string[]
   rolesByQuestionId?: ReadonlyMap<string, readonly string[]>
+  visibleQuestionIds?: ReadonlySet<string>
   children: ReactNode
 }) {
   const [selectedIds, setSelectedIds] = useState(new Set<string>())
   const validIds = new Set(questions.map((question) => question.id))
   const selected = new Set([...selectedIds].filter((id) => validIds.has(id)))
   const selectedQuestions = questions.filter((question) => selected.has(question.id))
-  const selectedRoles = [...new Set(selectedQuestions.flatMap((question) => rolesByQuestionId?.get(question.id) ?? roles))]
+  const selectedRoles = [...new Set(selectedQuestions.flatMap((question) => rolesByQuestionId?.get(question.id) ?? roles ?? []))]
+  const hiddenCount = visibleQuestionIds ? selectedQuestions.filter((question) => !visibleQuestionIds.has(question.id)).length : 0
+  const validSignature = JSON.stringify([...validIds])
+  useEffect(() => {
+    setSelectedIds((current) => {
+      const next = new Set([...current].filter((id) => validIds.has(id)))
+      return next.size === current.size ? current : next
+    })
+  }, [validSignature])
   const [open, setOpen] = useState(false)
   const prepareButton = useRef<HTMLButtonElement>(null)
 
@@ -55,6 +64,7 @@ export default function PracticeHandoff({ questions, company, roles, rolesByQues
   } }}>
     {questions.length > 0 && <div className="practice-handoff-toolbar">
       <span>{selected.size} question{selected.size === 1 ? '' : 's'} selected for ChatGPT</span>
+      {hiddenCount > 0 && <span>{hiddenCount} selected question{hiddenCount === 1 ? ' is' : 's are'} hidden in this view and included in the prompt.</span>}
       <button ref={prepareButton} type="button" className="secondary-button" disabled={!selected.size} onClick={() => setOpen(true)}>Prepare ChatGPT prompt</button>
       {selected.size > 0 && <button type="button" className="text-button" onClick={() => setSelectedIds(new Set())}>Clear selection</button>}
     </div>}
@@ -65,13 +75,17 @@ export default function PracticeHandoff({ questions, company, roles, rolesByQues
 
 function PromptPreview({ questions, company, roles, onClose }: {
   questions: PracticeQuestion[]
-  company: string
+  company?: string
   roles: string[]
   onClose: () => void
 }) {
   const [includeCompany, setIncludeCompany] = useState(false)
   const [includeRoles, setIncludeRoles] = useState(false)
-  const context = { company: includeCompany ? company : undefined, roles: includeRoles ? roles : undefined }
+  const companies = [...new Set(questions.flatMap((question) => question.applications?.map((application) => application.company) ?? []))]
+  const applicationRoles = [...new Set(questions.flatMap((question) => question.applications?.map((application) => application.role) ?? []))]
+  const context = company === undefined
+    ? { includeCompanies: includeCompany, includeRoles }
+    : { company: includeCompany ? company : undefined, roles: includeRoles ? roles : undefined }
   const generated = buildPracticePrompts(questions, context)
   const signature = JSON.stringify([questions, context])
   const [preparedSignature, setPreparedSignature] = useState(signature)
@@ -136,8 +150,8 @@ function PromptPreview({ questions, company, roles, onClose }: {
     </header>
     <p id={disclosureId}>Copying puts this text on your device clipboard. Opening ChatGPT does not send the prompt. When you paste and send it there, you share the shown content with OpenAI under your ChatGPT account’s settings. Remove anything you do not want to share.</p>
     <fieldset className="practice-context"><legend>Optional context</legend>
-      <label><input type="checkbox" checked={includeCompany} onChange={(event) => setIncludeCompany(event.target.checked)} /> Include company: {company}</label>
-      {roles.length > 0 && <label><input type="checkbox" checked={includeRoles} onChange={(event) => setIncludeRoles(event.target.checked)} /> Include role{roles.length === 1 ? '' : 's'}: {roles.join(', ')}</label>}
+      <label><input type="checkbox" checked={includeCompany} onChange={(event) => setIncludeCompany(event.target.checked)} /> Include {companies.length > 1 ? 'companies' : 'company'}: {company ?? companies.join(', ')}</label>
+      {(roles.length > 0 || applicationRoles.length > 0) && <label><input type="checkbox" checked={includeRoles} onChange={(event) => setIncludeRoles(event.target.checked)} /> Include role{(company === undefined ? applicationRoles : roles).length === 1 ? '' : 's'}: {(company === undefined ? applicationRoles : roles).join(', ')}</label>}
     </fieldset>
     <p>{generated.questionCount} unique question{generated.questionCount === 1 ? '' : 's'} selected{generated.duplicateCount > 0 ? `; ${generated.duplicateCount} exact duplicate${generated.duplicateCount === 1 ? '' : 's'} combined with their skill names` : ''}.</p>
     {changed && <div className="practice-preview-changed" role="alert">
