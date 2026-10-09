@@ -8,6 +8,7 @@ import type { ApplicationSort } from '../../applications/applicationSort'
 
 import PracticeHandoff, { PracticeQuestionChoice } from '../components/PracticeHandoff'
 import type { PracticeQuestion } from '../practicePrompt'
+import './applicationSkillFlags.css'
 
 type ImportanceFilter = 'All' | JobSkill['importance']
 
@@ -149,40 +150,49 @@ export default function SkillsPage({ applications, loading, now = Date.now(), on
                     const questionsId = `skill-questions-${application.id}-${index}`
                     const questions = skill.interviewQuestions ?? []
                     const needsNoStudy = getSkillPriority(skill) === NO_STUDY_PRIORITY
-                    return <article className={`analyzed-skill${needsNoStudy ? ' analyzed-skill-no-study' : ''}`} key={`${skill.name}-${skill.evidence}`}>
-                      <button
-                        type="button"
-                        className="skill-practice-toggle"
-                        aria-expanded={isSelected}
-                        aria-controls={questionsId}
-                        onClick={() => setSelectedSkill(isSelected ? null : { applicationId: application.id, skillName: skill.name })}
-                      >
-                        <span className="analyzed-skill-heading"><strong>{skill.name}</strong><span className={`importance importance-${skill.importance}`}>{skill.importance}</span></span>
-                        <span className="analyzed-skill-meta">{skill.category}</span>
-                        <span className="skill-practice-hint">{isSelected ? 'Hide interview questions' : 'Practice interview questions'}</span>
-                      </button>
-                      <blockquote>“{skill.evidence}”</blockquote>
-                      <label className="skill-comfort-rating">
-                        <span>Knowledge level</span>
-                        <select
-                          aria-label={`Knowledge level for ${skill.name}`}
-                          value={getComfortRating(skill)}
-                          disabled={savingApplications.has(application.id)}
-                          onChange={(event) => {
-                            if (isComfortRating(event.target.value)) {
-                              void updateKnowledge(application.id, skill.name, event.target.value)
-                            }
-                          }}
+                    return <article className={`analyzed-skill application-skill-card${needsNoStudy ? ' analyzed-skill-no-study' : ''}`} key={`${skill.name}-${skill.evidence}`}>
+                      <div className="application-skill-heading">
+                        <button
+                          type="button"
+                          className="skill-practice-toggle"
+                          aria-expanded={isSelected}
+                          aria-controls={questionsId}
+                          onClick={() => setSelectedSkill(isSelected ? null : { applicationId: application.id, skillName: skill.name })}
                         >
-                          {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
-                        </select>
-                      </label>
+                          <span className="analyzed-skill-heading"><strong>{skill.name}</strong></span>
+                          <span className="analyzed-skill-meta">{skill.category}</span>
+                          <span className="skill-practice-hint">{isSelected ? 'Hide interview questions' : 'Practice interview questions'}</span>
+                        </button>
+                        <div className="application-skill-flags">
+                          <span className={`importance importance-${skill.importance}`}>{skill.importance}</span>
+                        </div>
+                      </div>
+                      <blockquote>“{skill.evidence}”</blockquote>
                       {isSelected && <div className="skill-practice-questions" id={questionsId}>
                         <h4>Interview practice for {skill.name}</h4>
                         {questions.length
                           ? <ol>{questions.map((question, questionIndex) => <li key={`${questionIndex}-${question}`}><PracticeQuestionChoice question={applicationPracticeQuestion(skill, questionIndex)} /></li>)}</ol>
                           : <p>Interview questions are not available for this saved analysis yet. Open the application to generate them.</p>}
                       </div>}
+                      <div className="application-skill-knowledge">
+                        <label className="company-skill-knowledge-level" title="Change the knowledge level for this application skill.">
+                          <span className="sr-only">Knowledge level:</span>
+                          <select
+                            className="company-skill-knowledge-select"
+                            aria-label={`Knowledge level for ${skill.name}`}
+                            value={getComfortRating(skill)}
+                            disabled={savingApplications.has(application.id)}
+                            onChange={(event) => {
+                              if (isComfortRating(event.target.value)) {
+                                void updateKnowledge(application.id, skill.name, event.target.value)
+                              }
+                            }}
+                          >
+                            {comfortRatings.map((rating) => <option key={rating.value} value={rating.value}>{rating.label}</option>)}
+                          </select>
+                          <ChevronDown size={11} aria-hidden="true" />
+                        </label>
+                      </div>
                     </article>
                   })}</div> : <div className="no-skills-found">{application.skills?.length ? `No ${importance.toLowerCase()} skills in this posting.` : 'No specific skills were found in the saved job posting.'}</div>}
                   {application.jobDescription && <details className="saved-job-description"><summary>View fetched job description</summary><pre>{application.jobDescription}</pre></details>}
