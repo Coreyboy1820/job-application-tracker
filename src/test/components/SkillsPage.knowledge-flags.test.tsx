@@ -8,13 +8,13 @@ const application: Application = { id: 'one', company: 'Acme', role: 'Engineer',
 const defaults = { loading: false, onOpenApplication: vi.fn(), onOpenCompany: vi.fn(), onOpenApplicationSkills: vi.fn(), applicationFilterId: null, onClearApplicationFilter: vi.fn() }
 
 describe('application knowledge flags', () => {
-  it('places a separately labeled selector beside each practice button for every importance level', () => {
+  it('places a separately labeled selector in each skill card for every importance level', () => {
     render(<SkillsPage {...defaults} applications={[{ ...application, skills: [skill, { ...skill, name: 'React', importance: 'preferred', comfortRating: 'high' }, { ...skill, name: 'Git', importance: 'mentioned', comfortRating: undefined, needsNoStudy: true }] }]} onUpdateSkillComfortRating={vi.fn()} />)
     for (const name of ['TypeScript', 'React', 'Git']) {
       const select = screen.getByRole('combobox', { name: `Knowledge level for ${name}` })
       const card = select.closest('article')!
       expect(select.closest('button')).toBeNull()
-      expect(within(select.parentElement!.parentElement!).getByText(name === 'TypeScript' ? 'required' : name === 'React' ? 'preferred' : 'mentioned')).toBeTruthy()
+      expect(within(card).getByText(name === 'TypeScript' ? 'required' : name === 'React' ? 'preferred' : 'mentioned')).toBeTruthy()
       expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual(['Low', 'Medium', 'High', 'No study needed'])
       fireEvent.click(select)
       expect(within(card).getByRole('button').getAttribute('aria-expanded')).toBe('false')

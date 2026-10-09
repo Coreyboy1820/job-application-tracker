@@ -19,11 +19,40 @@
   flex-shrink: 0;
 }
 
-.application-skill-flags .company-skill-knowledge-level {
+.application-skill-knowledge .company-skill-knowledge-level {
+  position: relative;
   max-width: 100%;
+  padding: 0;
 }
 
-.application-skill-flags .company-skill-knowledge-select:disabled {
+.application-skill-knowledge .company-skill-knowledge-select:disabled {
   cursor: wait;
   opacity: .6;
+}
+
+.application-skill-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.application-skill-knowledge {
+  align-self: flex-end;
+  max-width: 100%;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.application-skill-knowledge .company-skill-knowledge-select {
+  display: block;
+  width: 100%;
+  padding: 5px 24px 5px 8px;
+  border-radius: inherit;
+}
+
+.application-skill-knowledge .company-skill-knowledge-level svg {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
