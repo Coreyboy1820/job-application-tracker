@@ -2,11 +2,14 @@ export type PracticeQuestion = {
   id: string
   text: string
   skillNames: string[]
+  applications?: { company: string; role: string }[]
 }
 
 export type PracticeContext = {
   company?: string
   roles?: string[]
+  includeCompanies?: boolean
+  includeRoles?: boolean
 }
 
 // A Rolecall usability target, not a ChatGPT input limit.
@@ -27,6 +30,10 @@ function renderPrompt(questions: readonly PracticeQuestion[], context: PracticeC
       `--- BEGIN QUESTION ${offset + index + 1} DATA ---`,
       'Skill labels:',
       ...question.skillNames.map(name => `- ${name}`),
+      ...(question.applications?.flatMap((application) => {
+        const fields = [context.includeCompanies ? `Company: ${application.company}` : '', context.includeRoles ? `Role: ${application.role}` : ''].filter(Boolean)
+        return fields.length ? [`Application: ${fields.join(' · ')}`] : []
+      }) ?? []),
       'Question text:',
       question.text,
       `--- END QUESTION ${offset + index + 1} DATA ---`,
@@ -41,8 +48,9 @@ export function buildPracticePrompts(questions: readonly PracticeQuestion[], con
     const existing = byText.get(question.text)
     if (existing) {
       existing.skillNames = [...new Set([...existing.skillNames, ...question.skillNames])]
+      existing.applications = mergeApplications([...(existing.applications ?? []), ...(question.applications ?? [])])
     } else {
-      const copy = { id: question.id, text: question.text, skillNames: [...new Set(question.skillNames)] }
+      const copy: PracticeQuestion = { id: question.id, text: question.text, skillNames: [...new Set(question.skillNames)], applications: question.applications ? mergeApplications(question.applications) : undefined }
       unique.push(copy)
       byText.set(question.text, copy)
     }
@@ -72,4 +80,8 @@ export function buildPracticePrompts(questions: readonly PracticeQuestion[], con
     return prompt
   })
   return { prompts, questionCount: unique.length, duplicateCount: questions.length - unique.length }
+}
+
+function mergeApplications(applications: NonNullable<PracticeQuestion['applications']>) {
+  return [...new Map(applications.map((application) => [JSON.stringify([application.company, application.role]), application])).values()]
 }

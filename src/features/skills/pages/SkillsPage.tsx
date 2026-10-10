@@ -59,6 +59,15 @@ export default function SkillsPage({ applications, loading, now = Date.now(), on
     }), applicationSort, now)
   }, [scopedApplications, importance, search, applicationSort, now])
 
+  const practiceQuestions = analyzedApplications.flatMap((application) => (application.skills ?? []).flatMap((skill) =>
+    (skill.interviewQuestions ?? []).map((_, index) => applicationPracticeQuestion(application, skill, index)),
+  ))
+  const visibleQuestionIds = new Set(filteredApplications.flatMap((application) => {
+    if (collapsedApplications.has(application.id) || selectedSkill?.applicationId !== application.id) return []
+    return (application.skills ?? []).filter((skill) => selectedSkill.skillName === skill.name && (importance === 'All' || skill.importance === importance))
+      .flatMap((skill) => (skill.interviewQuestions ?? []).map((_, index) => applicationPracticeQuestion(application, skill, index).id))
+  }))
+
   async function updateKnowledge(applicationId: string, skillName: string, rating: ComfortRating) {
     if (savingIds.current.has(applicationId)) return
     savingIds.current.add(applicationId)
@@ -104,25 +113,24 @@ export default function SkillsPage({ applications, loading, now = Date.now(), on
     </section>
 
     {saveError && <p className="auth-error" role="alert">{saveError}</p>}
-    <section className="list-panel skills-library">
-      <div className="panel-heading"><div><h2>Skills by application</h2><p>Lowest knowledge levels come first; no-study skills remain visible at the end.</p></div>{!applicationFilterId && <span className="cloud-badge">Synced to your account</span>}</div>
-      <div className="skills-toolbar">
-        <label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search skills and roles…" /></label>
-        <label className="sort-control"><span className="sr-only">Sort skill applications</span><select value={applicationSort} onChange={(event) => setApplicationSort(event.target.value as ApplicationSort)}><option value="saved">Saved order</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="next-interview">Next interview</option></select></label>
-        <div className="skills-filter" role="group" aria-label="Filter by importance">
-          {(['All', 'required', 'preferred', 'mentioned'] as const).map((item) => <button key={item} type="button" className={importance === item ? 'skills-filter-active' : ''} aria-pressed={importance === item} onClick={() => setImportance(item)}>{item === 'All' ? item : `${item[0].toUpperCase()}${item.slice(1)}`}</button>)}
+    <PracticeHandoff key={applicationFilterId ?? 'all-applications'} questions={practiceQuestions} visibleQuestionIds={visibleQuestionIds}>
+      <section className="list-panel skills-library">
+        <div className="panel-heading"><div><h2>Skills by application</h2><p>Lowest knowledge levels come first; no-study skills remain visible at the end.</p></div>{!applicationFilterId && <span className="cloud-badge">Synced to your account</span>}</div>
+        <div className="skills-toolbar">
+          <label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search skills and roles…" /></label>
+          <label className="sort-control"><span className="sr-only">Sort skill applications</span><select value={applicationSort} onChange={(event) => setApplicationSort(event.target.value as ApplicationSort)}><option value="saved">Saved order</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="next-interview">Next interview</option></select></label>
+          <div className="skills-filter" role="group" aria-label="Filter by importance">
+            {(['All', 'required', 'preferred', 'mentioned'] as const).map((item) => <button key={item} type="button" className={importance === item ? 'skills-filter-active' : ''} aria-pressed={importance === item} onClick={() => setImportance(item)}>{item === 'All' ? item : `${item[0].toUpperCase()}${item.slice(1)}`}</button>)}
+          </div>
         </div>
-      </div>
 
-      {loading ? <div className="empty-state"><p>Loading your skills…</p></div> : filteredApplications.length ? <div className="skills-application-list">
-        {filteredApplications.map((application) => {
-          const isAnalyzed = Boolean(application.skillsAnalyzedAt && application.skillsSourceUrl === application.url)
-          const isCollapsed = collapsedApplications.has(application.id)
-          const applicationContentId = `skills-application-content-${application.id}`
-          const skills = sortSkillsForStudy((application.skills ?? []).filter((skill) => importance === 'All' || skill.importance === importance))
-          const practiceQuestions = isAnalyzed ? (application.skills ?? []).flatMap((skill) => (skill.interviewQuestions ?? []).map((_, index) => applicationPracticeQuestion(skill, index))) : []
-          return <article className="skills-application" key={application.id}>
-            <PracticeHandoff questions={practiceQuestions} company={application.company} roles={[application.role]}>
+        {loading ? <div className="empty-state"><p>Loading your skills…</p></div> : filteredApplications.length ? <div className="skills-application-list">
+          {filteredApplications.map((application) => {
+            const isAnalyzed = Boolean(application.skillsAnalyzedAt && application.skillsSourceUrl === application.url)
+            const isCollapsed = collapsedApplications.has(application.id)
+            const applicationContentId = `skills-application-content-${application.id}`
+            const skills = sortSkillsForStudy((application.skills ?? []).filter((skill) => importance === 'All' || skill.importance === importance))
+            return <article className="skills-application" key={application.id}>
               <header className="skills-application-header">
                 <div className="skills-company-mark"><BriefcaseBusiness size={16} /></div>
                 <div className="skills-application-title"><h3><a className="skills-company-link" href={`#/skills/company/${encodeURIComponent(application.company)}`} onClick={(event) => { event.preventDefault(); onOpenCompany(application.company) }}>{application.company}</a></h3><p>{application.role}{application.location ? ` · ${application.location}` : ''}</p><span className="skills-application-meta">{application.status} · Applied {formatDate(application.dateApplied)}{isAnalyzed && application.skillsAnalyzedAt ? ` · Analyzed ${formatDate(application.skillsAnalyzedAt.slice(0, 10))}` : ''}</span></div>
@@ -171,7 +179,7 @@ export default function SkillsPage({ applications, loading, now = Date.now(), on
                       {isSelected && <div className="skill-practice-questions" id={questionsId}>
                         <h4>Interview practice for {skill.name}</h4>
                         {questions.length
-                          ? <ol>{questions.map((question, questionIndex) => <li key={`${questionIndex}-${question}`}><PracticeQuestionChoice question={applicationPracticeQuestion(skill, questionIndex)} /></li>)}</ol>
+                          ? <ol>{questions.map((question, questionIndex) => <li key={`${questionIndex}-${question}`}><PracticeQuestionChoice question={applicationPracticeQuestion(application, skill, questionIndex)} /></li>)}</ol>
                           : <p>Interview questions are not available for this saved analysis yet. Open the application to generate them.</p>}
                       </div>}
                       <div className="application-skill-knowledge">
@@ -198,12 +206,12 @@ export default function SkillsPage({ applications, loading, now = Date.now(), on
                   {application.jobDescription && <details className="saved-job-description"><summary>View fetched job description</summary><pre>{application.jobDescription}</pre></details>}
                 </> : <div className="skills-not-analyzed">{application.url ? 'Open the application to fetch the posting and analyze its skills.' : 'Add a job posting link to analyze this application.'}</div>}
               </div>
-            </PracticeHandoff>
-          </article>
-        })}
-      </div> : <div className="empty-state"><div className="empty-illustration"><Sparkles size={20} /></div><h3>{applicationFilterId && !selectedApplication ? 'Application unavailable' : applications.length ? 'No matching skills' : 'No applications yet'}</h3><p>{applicationFilterId && !selectedApplication ? 'This application may have been deleted. Choose Show all skills to return to your library.' : applications.length ? 'Try a different search or importance filter.' : 'Add an application with a job posting link to start collecting skills.'}</p></div>}
-      <div className="panel-footer"><span>Showing <strong>{filteredApplications.length}</strong> of <strong>{scopedApplications.length}</strong> applications</span><span className="privacy-note"><span className="privacy-dot" /> Stored securely in your account</span></div>
-    </section>
+            </article>
+          })}
+        </div> : <div className="empty-state"><div className="empty-illustration"><Sparkles size={20} /></div><h3>{applicationFilterId && !selectedApplication ? 'Application unavailable' : applications.length ? 'No matching skills' : 'No applications yet'}</h3><p>{applicationFilterId && !selectedApplication ? 'This application may have been deleted. Choose Show all skills to return to your library.' : applications.length ? 'Try a different search or importance filter.' : 'Add an application with a job posting link to start collecting skills.'}</p></div>}
+        <div className="panel-footer"><span>Showing <strong>{filteredApplications.length}</strong> of <strong>{scopedApplications.length}</strong> applications</span><span className="privacy-note"><span className="privacy-dot" /> Stored securely in your account</span></div>
+      </section>
+    </PracticeHandoff>
     <footer className="page-footer">Made for the long game <span>✳</span></footer>
   </>
 }
@@ -217,7 +225,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
 }
 
-function applicationPracticeQuestion(skill: JobSkill, index: number): PracticeQuestion {
+function applicationPracticeQuestion(application: Application, skill: JobSkill, index: number): PracticeQuestion {
   const text = skill.interviewQuestions?.[index] ?? ''
-  return { id: JSON.stringify([skill.name, skill.evidence, index, text]), text, skillNames: [skill.name] }
+  return { id: JSON.stringify([application.id, skill.name, skill.evidence, index, text]), text, skillNames: [skill.name], applications: [{ company: application.company, role: application.role }] }
 }
