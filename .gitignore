@@ -5,3 +5,4 @@ dist/
 !.env.example
 .supabase/
 supabase/.temp/
+release/
