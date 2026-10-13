@@ -27,7 +27,7 @@ vi.mock('../../shared/lib/supabase', () => ({
   },
 }))
 
-vi.mock('../../features/interviews/components/GoogleCalendarButton', () => ({ default: ({ interview, disabled, onRecordLaunch }: { application: Application; interview: Interview; disabled?: boolean; onRecordLaunch: (id: string) => Promise<void> }) => <button disabled={disabled} onClick={() => void onRecordLaunch(interview.id)}>Calendar {interview.id}</button> }))
+vi.mock('../../features/interviews/components/GoogleCalendarButton', () => ({ default: ({ interview, disabled, onRecordLaunch }: { application: Application; interview: Interview; disabled?: boolean; onRecordLaunch: (id: string) => Promise<void> }) => <button disabled={disabled} onClick={() => void onRecordLaunch(interview.id).catch(() => {})}>Calendar {interview.id}</button> }))
 
 vi.mock('../../features/applications/data/legacyStorage', () => ({
   loadApplications: vi.fn().mockResolvedValue([]),
@@ -54,7 +54,7 @@ const applicationRow = {
 function configureSupabase(interviews: typeof applicationRow.interviews = []) {
   const row = { ...applicationRow, interviews }
   const order = vi.fn().mockResolvedValue({ data: [row], error: null })
-  const select = vi.fn(() => ({ order }))
+  const select = vi.fn(() => ({ order, eq: vi.fn(() => ({ single: supabaseMocks.single })) }))
 
   supabaseMocks.single.mockImplementation(async () => {
     const updates = supabaseMocks.update.mock.calls
@@ -64,11 +64,10 @@ function configureSupabase(interviews: typeof applicationRow.interviews = []) {
       error: null,
     }
   })
-  supabaseMocks.update.mockImplementation(() => ({
-    eq: vi.fn(() => ({
-      select: vi.fn(() => ({ single: supabaseMocks.single })),
-    })),
-  }))
+  const query = { eq: vi.fn(), select: vi.fn(() => ({ single: supabaseMocks.single })) }
+  query.eq.mockReturnValue(query)
+  supabaseMocks.update.mockReturnValue(query)
+
   supabaseMocks.from.mockReturnValue({ select, update: supabaseMocks.update })
 }
 
@@ -111,7 +110,7 @@ describe('interview calendar integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Calendar round-1' }))
     await waitFor(() => expect((screen.getByRole('button', { name: 'Edit' }) as HTMLButtonElement).disabled).toBe(true))
     expect((screen.getByRole('button', { name: 'Delete' }) as HTMLButtonElement).disabled).toBe(true)
-    expect((screen.getByRole('button', { name: 'Saving…' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Add interview' }) as HTMLButtonElement).disabled).toBe(true)
     complete({ data: { ...applicationRow, interviews: [{ ...interview, googleCalendarOpenedAt: '2026-10-04T01:00:00.000Z' }] }, error: null })
     await waitFor(() => expect((screen.getByRole('button', { name: 'Edit' }) as HTMLButtonElement).disabled).toBe(false))
   })
@@ -124,7 +123,6 @@ describe('interview calendar integration', () => {
     fireEvent.change(screen.getByLabelText('Interview location'), { target: { value: 'Room 4' } })
     fireEvent.click(screen.getByRole('button', { name: 'Update interview' }))
     expect((screen.getByRole('button', { name: 'Calendar round-1' }) as HTMLButtonElement).disabled).toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }))
     await waitFor(() => expect(supabaseMocks.update).toHaveBeenCalledWith({ interviews: [expect.objectContaining({ type: 'Onsite', location: 'Room 4', durationMinutes: 90, meetingLink: interview.meetingLink, googleCalendarOpenedAt: interview.googleCalendarOpenedAt })] }))
   })
 
@@ -160,12 +158,29 @@ describe('interview calendar integration', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Applications/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Manage interviews for Frontend Engineer at Acme' }))
     expect((screen.getByRole('button', { name: 'Edit' }) as HTMLButtonElement).disabled).toBe(true)
-    expect((screen.getByRole('button', { name: 'Saving…' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Add interview' }) as HTMLButtonElement).disabled).toBe(true)
     expect(supabaseMocks.update).toHaveBeenCalledTimes(1)
     complete({ data: { ...applicationRow, interviews: [{ ...interview, googleCalendarOpenedAt: '2026-10-04T01:00:00.000Z' }] }, error: null })
     await waitFor(() => expect((screen.getByRole('button', { name: 'Edit' }) as HTMLButtonElement).disabled).toBe(false))
-    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Updated after calendar' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Update interview' }))
     await waitFor(() => expect(supabaseMocks.update).toHaveBeenLastCalledWith({ interviews: [expect.objectContaining({ googleCalendarOpenedAt: '2026-10-04T01:00:00.000Z' })] }))
+  })
+
+  it('refreshes an externally changed schedule before retrying calendar tracking', async () => {
+    await openInterviewSchedule()
+    const external = { ...interview, notes: 'Changed on another device' }
+    supabaseMocks.single.mockResolvedValueOnce({ data: null, error: { code: 'PGRST116', message: 'No matching row' } })
+    supabaseMocks.single.mockResolvedValueOnce({ data: { ...applicationRow, interviews: [external] }, error: null })
+    fireEvent.click(screen.getByRole('button', { name: 'Calendar round-1' }))
+    await screen.findByText('Changed on another device')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Calendar round-1' }).hasAttribute('disabled')).toBe(false))
+    const query = supabaseMocks.update.mock.results[0].value
+    expect(query.eq).toHaveBeenCalledWith('interviews', JSON.stringify([interview]))
+    fireEvent.click(screen.getByRole('button', { name: 'Calendar round-1' }))
+    await waitFor(() => expect(supabaseMocks.update).toHaveBeenLastCalledWith({ interviews: [expect.objectContaining({ notes: external.notes, googleCalendarOpenedAt: expect.any(String) })] }))
+    expect(query.eq).toHaveBeenLastCalledWith('interviews', JSON.stringify([external]))
   })
 
   it('shows the calendar action alongside the agenda navigation button', async () => {
