@@ -8,9 +8,7 @@ Create a record with company, role, location, application date, posting URL, not
 
 An **application** is one role at one company. Two applications at the same company remain separate records. A **skill** is extracted from that application's saved posting. Its knowledge level belongs to that application skill, rather than globally to the skill name.
 
-The following application-list captures predate the status-ordering update and may show the retired Interested status; the supported statuses and order are described above. Refresh these captures before final wiki publication.
-
-![Earlier desktop application list with fictional records](assets/applications-desktop.png)
+![Desktop application list with fictional records](assets/applications-desktop.png)
 
 ![Mobile application list with fictional records](assets/applications-mobile.png)
 
