@@ -1,10 +1,13 @@
 # Rolecall Sites delivery
 
-Issue #59 preparation, rechecked October 19, 2026. **Automatic production deployment is
-not configured.** CI prepares and verifies tested deployment candidates; publication still
-requires an authenticated Sites operation. Cloud bridge setup and readiness
-checks are in [deployment task setup](sites-auto-deploy-task.md). Keep #59 open until an unattended
-route is implemented and verified with a merged commit.
+Issue #59 follow-up, October 19, 2026 (America/Los_Angeles). PR #60 is merged.
+The first post-merge candidate has been published successfully as Site version 2,
+and its append-only ledger is unlocked at revision 10. Cloud lock and candidate
+verification passed in owner-supplied reports; Sites independently confirms the
+saved source and terminal deployment. **Automatic future-merge publication is not
+yet confirmed:** the saved publisher task configuration and live failure/recovery
+coverage remain outstanding. Keep #59 open. See the
+[evidence and remaining gates](sites-publication-evidence.md).
 
 ## Existing destination
 
@@ -45,7 +48,7 @@ live app. Artifacts never package `.env.local`, repository credentials, or sourc
 secrets. Read permission on this private GitHub repository is required to download
 its artifacts. Workflow summaries distinguish candidate preparation from a live
 release. New runs cancel superseded CI for the same ref; this does not provide a
-production deployment lock because no automated deployment is running.
+production deployment lock. Publishers must use the dedicated operational ledger.
 
 ## Candidate verification
 
@@ -86,12 +89,12 @@ supported external CI deployment API was established by the available docs/tools
 This is a capability finding, not a claim that future or other account-specific
 integrations cannot exist.
 
-A GitHub-triggered or scheduled cloud task is a possible bridge to investigate,
-but its ability to obtain this private repository, successful CI artifacts, and
-Sites publication authorization must be verified in a fresh cloud run. Local
-`gh` authentication does not establish cloud access. The GitHub plugin is now connected and can read this private repository in
-this conversation; access from a fresh cloud task remains unverified. A polling schedule also differs from
-immediate merge-triggered publishing; do not silently treat them as equivalent.
+The owner reported successful cloud lock and candidate verification after PR #60
+merged. The first actual Sites publication also has native terminal evidence.
+These establish the recorded capabilities, not the configuration of a future
+merge-triggered publisher. Local `gh` authentication alone does not establish
+cloud access. A polling schedule differs from immediate merge-triggered
+publishing; do not silently treat them as equivalent.
 
 ## Supported authenticated publication
 
@@ -122,9 +125,9 @@ Use the Sites skill and native tools from an authenticated ChatGPT session:
    must not be reported as deployment success. Reconcile any saved version or
    running deployment before retrying to avoid duplicate releases.
 
-Do not run concurrent publishers. A future unattended bridge needs a durable
-per-Site lock and a current-main check before publication; CI cancellation alone
-cannot prevent an older publisher from replacing a newer live release.
+Every publisher must use the existing durable per-Site lock and a current-main
+check before publication. CI cancellation alone cannot prevent an older publisher
+from replacing a newer live release.
 
 ## Recovery and rollback
 
@@ -149,9 +152,9 @@ private GitHub access. Implement successful-main gating, exact artifact/source
 transfer, serialized publication, stale-run protection, deployment status and
 rollback records. Test failed CI, concurrent merges, publication failure, public
 access, and a real merged commit before closing the issue. The candidate workflow
-in this PR is preparation for that work, not completed continuous deployment.
+and first release do not by themselves prove ongoing continuous deployment.
 
-## Current follow-up evidence
+## Historical pre-merge evidence
 
 On October 19, 2026, PR #60 remained open/draft with passing original CI.
 Both required GitHub variable names were present. Main had successful push CI,
@@ -170,7 +173,7 @@ coordination now has a GitHub contents-CAS implementation and
 publication path, and end-to-end tests remain to be demonstrated;
 artifact verification alone does not complete automatic deployment.
 
-## Reported web readiness result
+## Historical interactive web readiness result
 
 The owner supplied a first-run report: current main
 `a6410a4699640755b291224cf5e735d9ee7f8758`, successful main-push CI run
@@ -182,7 +185,7 @@ evidence, not proof of a fresh unattended run. Candidate download/verification
 moves to the post-merge check; production publishing stays disabled meanwhile.
 
 
-## Verification task follow-up
+## Historical verification task setup
 
 The owner reported creating **Verify Rolecall publication lock**, enabled for
 GitHub PR-merge events in this repository, with its prompt restricting action to
@@ -192,3 +195,6 @@ ordinary cloud-scheduled tasks.” No cloud execution occurred. State was read a
 revision 2, owner null, no releases; the Site remained public. The task ID,
 configuration receipt, and cloud execution URL remain outstanding. This updates
 the earlier setup report without treating a saved task as a working publisher.
+
+Current post-merge receipts supersede these historical readiness limits; see
+[publication evidence](sites-publication-evidence.md).

@@ -1,11 +1,12 @@
 # Rolecall deployment task setup
 
-Status: an enabled **verification-only** GitHub PR-merge task named **Verify
-Rolecall publication lock** was reported by the owner on October 19, 2026. It
-restricts action to merges into main and prohibits publication and sharing
-changes. Its task ID and cloud-run receipt have not been supplied. Production
-publication is not enabled or verified. Repository preparation is tracked in
-PR #60. Saving a task does not prove it can deploy the Site.
+Status: PR #60 is merged. Cloud lock/candidate verification was reported successful,
+and the first actual publication is independently confirmed as Site version 2.
+See [publication evidence](sites-publication-evidence.md) for exact identifiers.
+The original **Verify Rolecall publication lock** task was enabled but restricted
+to verification. Its later conversion to a production publisher has not been
+confirmed by a saved configuration readback. Do not assume a successful first
+publication enabled future merges.
 
 ## Configure the trigger
 
@@ -29,7 +30,9 @@ Official references:
 Use this request in a new web chat with the intended task connections. That is
 an interactive preflight, not cloud execution evidence. The owner attempted
 Run now on the event task and received “Run now is available only for ordinary
-cloud-scheduled tasks.” No cloud run occurred. Verify the event task through a
+cloud-scheduled tasks.” That immediate-run request did not start a cloud run. A later eligible merge
+produced the owner-reported cloud verification receipts. For a new task, verify
+the event task through a
 real eligible merge. Alternatively, separately provision an ordinary cloud task
 with the same connections and verification-only prompt for a capability test;
 this does not prove event delivery. Do not create dummy merges solely to test it:
@@ -105,12 +108,13 @@ be available to the cloud task; read it for supported source and publishing call
 
 ## Enablement evidence
 
-Keep **production publication** disabled until its cloud capabilities, lock, and
-receipt storage are demonstrated. The existing enabled verification-only task
-may run without publishing. Do not broaden its prompt into a publisher before
-these gates pass. Artifact download is a post-merge gate: until PR #60 reaches
-main, successful main runs legitimately have no candidate artifacts. Do not
-weaken main-push gating or repeatedly test an artifact that cannot yet exist.
+Cloud lock and artifact checks plus the first successful publication are now
+recorded in [publication evidence](sites-publication-evidence.md). Before enabling
+future production runs, save the full publication protocol above in the existing
+task and read back its enabled state, trigger, instructions, and GitHub/Sites
+connections. A verification-only prompt still prohibits publication, even when
+its trigger is enabled. Do not create an overlapping publisher. PR #60 now
+produces main artifacts; continue to enforce current-main successful-push gating.
 Before calling automatic deployment complete, record the task
 ID/configuration and cloud test URLs, plus results for a real merged commit,
 failed CI, duplicate events, overlapping merges, stale candidates, artifact
