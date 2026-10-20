@@ -4,9 +4,7 @@ Issue #59 follow-up, October 19, 2026 (America/Los_Angeles). PR #60 is merged.
 The first post-merge candidate has been published successfully as Site version 2,
 and its append-only ledger is unlocked at revision 10. Cloud lock and candidate
 verification passed in owner-supplied reports; Sites independently confirms the
-saved source and terminal deployment. **Automatic future-merge publication is not
-yet confirmed:** the saved publisher task configuration and live failure/recovery
-coverage remain outstanding. Keep #59 open. See the
+saved source and terminal deployment. An enabled production publisher and its full saved protocol have now been read back, but automatic future-merge publication is not yet proven because webhook filters, connector bindings, and a subsequent real merge run are not exposed by the available readback. Live failure/recovery coverage also remains outstanding. Keep #59 open. See the
 [evidence and remaining gates](sites-publication-evidence.md).
 
 ## Existing destination
@@ -91,8 +89,7 @@ integrations cannot exist.
 
 The owner reported successful cloud lock and candidate verification after PR #60
 merged. The first actual Sites publication also has native terminal evidence.
-These establish the recorded capabilities, not the configuration of a future
-merge-triggered publisher. Local `gh` authentication alone does not establish
+These establish the recorded capabilities. A later readback also confirms an enabled production publisher with the full protocol, but not its hidden trigger filters or connector bindings. Local `gh` authentication alone does not establish
 cloud access. A polling schedule differs from immediate merge-triggered
 publishing; do not silently treat them as equivalent.
 
@@ -147,11 +144,7 @@ Supabase migrations and Edge Function deployment are separate releases.
 
 ## Finish issue #59
 
-Identify supported unattended authentication and a trigger/bridge with verified
-private GitHub access. Implement successful-main gating, exact artifact/source
-transfer, serialized publication, stale-run protection, deployment status and
-rollback records. Test failed CI, concurrent merges, publication failure, public
-access, and a real merged commit before closing the issue. The candidate workflow
+The enabled publisher task `6ad6fcf51ab8819191c31fccf5133a90` has a saved prompt covering successful-main gating, exact artifact/source transfer, serialized publication, stale-run protection, deployment status, and rollback records. Verify its hidden trigger filters and connector bindings through the next real eligible merge. Test failed CI, concurrent merges, publication failure, public access, and recovery before closing the issue. The candidate workflow
 and first release do not by themselves prove ongoing continuous deployment.
 
 ## Historical pre-merge evidence

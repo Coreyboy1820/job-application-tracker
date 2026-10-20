@@ -3,10 +3,7 @@
 Status: PR #60 is merged. Cloud lock/candidate verification was reported successful,
 and the first actual publication is independently confirmed as Site version 2.
 See [publication evidence](sites-publication-evidence.md) for exact identifiers.
-The original **Verify Rolecall publication lock** task was enabled but restricted
-to verification. Its later conversion to a production publisher has not been
-confirmed by a saved configuration readback. Do not assume a successful first
-publication enabled future merges.
+The production publisher has now been read back as enabled: **Publish Rolecall main merges**, task ID `6ad6fcf51ab8819191c31fccf5133a90`, using `condition_watch`. Its saved prompt contains the full current-main CI gate, durable lock/CAS, candidate verification, public-audience preservation, supported Sites source synchronization, pre-save provenance, terminal reconciliation, and unlock protocol. The available readback does not expose webhook filters or connector bindings, so exact repository/base/merge delivery and attached GitHub/Sites connections remain unverified until a real subsequent merge runs.
 
 ## Configure the trigger
 
@@ -109,11 +106,7 @@ be available to the cloud task; read it for supported source and publishing call
 ## Enablement evidence
 
 Cloud lock and artifact checks plus the first successful publication are now
-recorded in [publication evidence](sites-publication-evidence.md). Before enabling
-future production runs, save the full publication protocol above in the existing
-task and read back its enabled state, trigger, instructions, and GitHub/Sites
-connections. A verification-only prompt still prohibits publication, even when
-its trigger is enabled. Do not create an overlapping publisher. PR #60 now
+recorded in [publication evidence](sites-publication-evidence.md). The existing publisher is enabled and its saved prompt has been read back with the full publication protocol. Do not create an overlapping publisher. The readback surface does not expose webhook filters or connector bindings, so verify event delivery and attached GitHub/Sites access from the next real eligible merge. PR #60 now
 produces main artifacts; continue to enforce current-main successful-push gating.
 Before calling automatic deployment complete, record the task
 ID/configuration and cloud test URLs, plus results for a real merged commit,

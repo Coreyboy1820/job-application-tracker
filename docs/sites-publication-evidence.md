@@ -1,7 +1,7 @@
 # Publication evidence and remaining gates
 
 Rechecked October 19, 2026, America/Los_Angeles. Runtime receipts use UTC.
-This records evidence; it does not enable or edit a cloud publisher task.
+This records evidence. The publisher readback below was read-only; this branch does not enable or edit a cloud publisher task.
 
 ## Verified first release
 
@@ -54,12 +54,11 @@ source/build under its own archive contract.
 | CI candidate production and verification | Passed for the real merged commit above; repeat for future current-main releases. |
 | Durable cloud lock/CAS/readback | Owner-reported cloud pass; matching ledger transitions are durable. |
 | First actual saved version and terminal deployment | Native Sites independently confirms version 2 succeeded; release ledger is unlocked. |
-| Future-merge publisher configuration | Not read back here. Original enabled task was verification-only; confirm it was changed to the full publication protocol, with correct trigger/connections and enabled status. |
+| Future-merge publisher configuration | Enabled task `Publish Rolecall main merges` (`6ad6fcf51ab8819191c31fccf5133a90`, `condition_watch`) was read back with the full saved publication protocol. The readback does not expose webhook filters or connector bindings; verify exact repo/base/merge delivery and attached GitHub/Sites access on the next real merge. |
 | Duplicate/stale/failure handling | Local helper coverage exists; live duplicate event, overlapping merges, CI failure, artifact expiry, publication ambiguity, and recovery receipts are not yet recorded. |
 | Rollback | Documented and locally tested; a live rollback and corrective release are not recorded. Do not disrupt production solely to manufacture a test receipt. |
 
-Before closing #59, obtain the saved publisher configuration and an unattended
-publication result tied to a real merge event, plus required operational coverage.
+Before closing #59, obtain an unattended publication result tied to a subsequent real merge event, confirm the hidden trigger/connection configuration through observed delivery, and complete required operational coverage.
 A completed conversation, one successful publication, or an enabled verification
 webhook alone does not establish automatic deployment on future merges. Do not
 create a second publisher or alter the existing trigger from a session that
@@ -68,3 +67,9 @@ cannot inspect its configuration.
 The separately requested **Resume Rolecall open issues** one-time schedule is a
 development continuation. It explicitly prohibits deployment and does not
 replace or enable the PR-merge publisher.
+
+## Publisher readback
+
+On October 20, 2026, the existing task **Publish Rolecall main merges** was read back enabled with ID `6ad6fcf51ab8819191c31fccf5133a90`, mode `condition_watch`, and updated timestamp `2026-10-20T05:55:35Z`. Its saved prompt contains the complete current-main CI gate, publication-state CAS/lock protocol, trusted candidate verification, public-audience preservation, supported Sites source synchronization, pending provenance, save/deploy reconciliation, terminal recording, and unlock requirements. The last-run timestamp exposed by the task was `2026-10-20T05:44:57Z`.
+
+The readback surface does not expose webhook trigger filters or connector bindings. Therefore it cannot by itself prove exact repository/base/merge delivery or that the intended GitHub and Sites connections are attached. Do not create or replace the task; use the next real eligible merge to verify those properties and ongoing unattended publication.
