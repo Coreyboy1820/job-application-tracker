@@ -1,7 +1,9 @@
 import type { Application } from '../../shared/types'
 import { getInterviewTimestamp, isValidInterviewDateTime } from '../interviews/interviewDates'
 
-export type ApplicationSort = 'saved' | 'newest' | 'oldest' | 'next-interview'
+import { statusPriority } from './statuses'
+
+export type ApplicationSort = 'status' | 'saved' | 'newest' | 'oldest' | 'next-interview'
 
 export function nextInterviewTimestamp(application: Application, now: number): number {
   return (application.interviews ?? []).reduce((soonest, interview) => {
@@ -12,6 +14,7 @@ export function nextInterviewTimestamp(application: Application, now: number): n
 }
 
 export function sortApplications(applications: readonly Application[], sort: ApplicationSort, now: number): Application[] {
+  if (sort === 'status') return [...applications].sort((a, b) => statusPriority[a.status] - statusPriority[b.status])
   if (sort === 'saved') return [...applications]
   if (sort === 'next-interview') {
     const nextTimes = new Map(applications.map((application) => [application.id, nextInterviewTimestamp(application, now)]))
