@@ -164,6 +164,19 @@ web/mobile, and a separate Workspace Agent trigger API. Neither is a direct
 Sites deployment API. The current tools cannot configure an event task or start
 a fresh cloud run, and no published Workspace Agent API channel/token is
 configured. See [deployment task setup](sites-auto-deploy-task.md) for the exact
-readiness check, stop conditions, and deployment requirements. The production
-lock, release ledger, cloud publication path, and end-to-end tests remain open;
+readiness check, stop conditions, and deployment requirements. Publication
+coordination now has a GitHub contents-CAS implementation and
+[operational guide](sites-publication-state.md). Cloud coordination access, the
+publication path, and end-to-end tests remain to be demonstrated;
 artifact verification alone does not complete automatic deployment.
+
+## Reported web readiness result
+
+The owner supplied a first-run report: current main
+`a6410a4699640755b291224cf5e735d9ee7f8758`, successful main-push CI run
+`39373573152`, attempt 1, and no candidate artifacts (expected before PR #60
+merges). The web chat opened Sites source
+`e2654e1f3f60902d801e0e43d9ed8e029089de30` and found public save/deploy tools.
+No publication, sharing change, or schedule was made. This is reported web-chat
+evidence, not proof of a fresh unattended run. Candidate download/verification
+moves to the post-merge check; production publishing stays disabled meanwhile.

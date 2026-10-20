@@ -29,6 +29,8 @@ jobs:
         run: npm ci
       - name: Test Sites candidate validation
         run: node --test scripts/sites-candidate.node-test.mjs
+      - name: Test Sites publication coordination
+        run: node --test scripts/sites-publication-state.node-test.mjs
       - name: Build app
         run: npm run build
         env:

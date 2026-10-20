@@ -33,14 +33,19 @@ Run now in the saved task to repeat it in a fresh cloud run:
 > main, authenticated CI run metadata and its matching artifact, verify it using
 > scripts/sites-candidate.mjs, and obtain supported Sites source access and
 > publication tools. Report the exact GitHub SHA/run and inspected Site audience,
-> but no tokens. Identify a durable per-Site publication lock and persistent
-> release record available to every run; demonstrate that a competing run cannot
-> acquire the lock. Report any missing capability instead of assuming access.
+> but no tokens. Use docs/sites-publication-state.md to read the existing GitHub
+> publication state, acquire a test lock, prove competing-owner and stale-SHA
+> writes are rejected, and unlock without creating a release. Report any missing
+> capability instead of assuming access. If PR #60 has not
+> merged, report candidate download as awaiting the first post-merge main artifact
+> rather than weakening production eligibility or requesting repeated checks.
 
 A task that cannot access a shell/helper, download artifacts, acquire a durable
 lock, or obtain Sites publication authorization must stop without publishing.
 Repository access in this local conversation is not evidence of cloud access.
-No lock service, deployment ledger, or event task is provisioned by PR #60.
+The lock and release ledger use the dedicated GitHub state branch described in
+[publication coordination](sites-publication-state.md). Verify its initialization
+and write access from the cloud task. No event task is provisioned by PR #60.
 
 ## Publication instructions after readiness is demonstrated
 
@@ -53,7 +58,9 @@ be available to the cloud task; read it for supported source and publishing call
    an older passing commit. If CI is still running, poll for at most 15 minutes;
    stop and report pending/failed/cancelled CI without publishing. Recovery uses
    Run now after successful CI; there is no automatic retry trigger for CI reruns.
-2. Acquire the verified durable per-Site lock. Keep it through terminal
+2. Follow [publication coordination](sites-publication-state.md) to acquire the
+   durable per-Site lock and update the persistent release ledger. Keep it
+   through terminal
    deployment reconciliation; do not replace it with a prompt saying “do not
    overlap.” Stop if the lock or release record is unavailable. Read the record;
    reconcile pending deployments and skip an already successful source/artifact.
@@ -73,20 +80,26 @@ be available to the cloud task; read it for supported source and publishing call
    supported helper and keep its verified Sites source SHA separate from GitHub's.
 6. Recheck current main, lock ownership, and the Site audience immediately before
    publication. If source is stale, release the lock and let a subsequent run
-   select current main. Save the verified archive and deploy the saved version
-   with the normal public-audience Sites operation; do not use private-only
+   select current main. Use `begin` to persist the pending release and provenance
+   before calling Sites save/deploy, and read it back. Save the verified archive;
+   use `record` to persist the returned saved version ID before deploying it.
+   Deploy with the normal public-audience operation; do not use private-only
    publication or publish-on-push as a substitute.
-7. Record GitHub SHA/run/artifact, Sites source SHA/version/deployment ID, expected
-   audience, and pending outcome before polling. A saved version or a completed
+7. Use `record` to persist the returned deployment ID before polling. The pending
+   record must retain GitHub SHA/run/artifact and Sites source/version provenance. A saved version or a completed
    agent run is not proof of a successful deployment. Poll nonterminal deployment
-   states only; record success with the returned URL or the terminal failure.
-   Reconcile an ambiguous save/deploy response before retrying. Release the lock
-   only after pending publication is resolved; surface failures for intervention.
+   states only; use `finish` with observed terminal evidence and outcome/URL, then
+   explicitly `unlock`. Reconcile an ambiguous save/deploy response before
+   retrying. Keep the lock if publication is unresolved; surface failures for
+   intervention.
 
 ## Enablement evidence
 
 Keep the task disabled until its cloud capabilities, lock, and receipt storage
-are demonstrated. Before calling automatic deployment complete, record the task
+are demonstrated. Artifact download is a post-merge gate: until PR #60 reaches
+main, successful main runs legitimately have no candidate artifacts. Do not
+weaken main-push gating or repeatedly test an artifact that cannot yet exist.
+Before calling automatic deployment complete, record the task
 ID/configuration and cloud test URLs, plus results for a real merged commit,
 failed CI, duplicate events, overlapping merges, stale candidates, artifact
 expiry, publication failure, and rollback. Verify the preserved public audience.
