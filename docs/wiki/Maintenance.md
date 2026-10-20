@@ -8,7 +8,7 @@ Update documentation when user behavior, route/state ownership, dependency versi
 
 ## Current publication restriction
 
-On October 19, 2026, authenticated SSH `git ls-remote` against the wiki repository still returned **Repository not found**. This cannot distinguish a disabled/uninitialized wiki from an account restriction; no settings were changed in this check.
+On October 19, 2026, authenticated SSH `git ls-remote` against the wiki repository still returned **Repository not found**. A fresh administrator-authenticated repository read confirmed `has_wiki: false`; an explicit `PATCH` requesting `has_wiki: true` returned false and a follow-up read remained false. Repository visibility stayed private. This cannot establish the account subscription or distinguish every possible platform restriction.
 
 Earlier, on October 5, 2026, administrator-authenticated `gh repo edit --enable-wiki` and an explicit repository API update with `has_wiki: true` returned/rechecked `has_wiki: false`. The wiki Git remote returned repository-not-found. Thus the pages cannot currently be published or checked in GitHub's rendered wiki. These are the observed restrictions, not a claim about the account's subscription (the account-plan field was unavailable).
 
