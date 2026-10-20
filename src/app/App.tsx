@@ -40,7 +40,7 @@ function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [applications, setApplications] = useState<Application[]>([])
-  const calendarLaunchLock = useRef(false)
+  const interviewWriteLock = useRef(false)
   const [calendarLaunchPending, setCalendarLaunchPending] = useState(false)
   const [agendaNow, setAgendaNow] = useState(() => Date.now())
   const [dataLoading, setDataLoading] = useState(false)
@@ -321,10 +321,21 @@ function App() {
     }
   }
 
+  async function refreshInterviewSchedule(id: string, requestEpoch: number) {
+    if (!client || !isCurrentAccount(requestEpoch)) return
+    const { data, error: refreshError } = await client.from('applications').select(applicationColumns).eq('id', id).single()
+    if (!refreshError && data && isCurrentAccount(requestEpoch)) {
+      const updated = fromRow(data as ApplicationRow)
+      setApplications((current) => current.map((item) => item.id === id ? updated : item))
+    }
+  }
+
   async function updateInterviews(id: string, interviews: Interview[]): Promise<string | null> {
     const requestEpoch = accountEpoch.current
+    if (interviewWriteLock.current) return 'Wait for the current interview change to finish saving.'
+    interviewWriteLock.current = true
+    setCalendarLaunchPending(true)
     try {
-      if (calendarLaunchLock.current) return 'Wait for the calendar tracking update to finish before saving this schedule.'
       if (!client) return 'Interview schedule cannot be saved because the database is unavailable.'
       if (!isCurrentAccount(requestEpoch)) return 'Your account changed. Please reopen the interview schedule.'
       setError(null)
@@ -332,31 +343,38 @@ function App() {
         .from('applications')
         .update({ interviews })
         .eq('id', id)
+        .eq('interviews', JSON.stringify(applications.find((item) => item.id === id)?.interviews ?? []))
         .select(applicationColumns)
         .single()
 
       if (!isCurrentAccount(requestEpoch)) return 'Your account changed. Please reopen the interview schedule.'
       if (updateError) {
         setError(`Could not save interview schedule: ${updateError.message}`)
+        if (updateError.code === 'PGRST116') {
+          await refreshInterviewSchedule(id, requestEpoch)
+          return 'This schedule changed elsewhere. Review the latest interviews and retry your change.'
+        }
         return updateError.message
       }
 
       const updated = fromRow(data as ApplicationRow)
       setApplications((current) => current.map((item) => item.id === id ? updated : item))
-      setInterviewEditorApplicationId(null)
       return null
     } catch (reason) {
       if (!isCurrentAccount(requestEpoch)) return 'Your account changed. Please reopen the interview schedule.'
       const message = reason instanceof Error ? reason.message : 'An unexpected error occurred.'
       setError(`Could not save interview schedule: ${message}`)
       return message
+    } finally {
+      interviewWriteLock.current = false
+      setCalendarLaunchPending(false)
     }
   }
 
   async function recordCalendarLaunch(applicationId: string, interviewId: string): Promise<void> {
     const requestEpoch = accountEpoch.current
-    if (calendarLaunchLock.current) throw new Error('Another calendar action is being saved. Please wait and retry.')
-    calendarLaunchLock.current = true
+    if (interviewWriteLock.current) throw new Error('Another calendar action is being saved. Please wait and retry.')
+    interviewWriteLock.current = true
     setCalendarLaunchPending(true)
     try {
       if (!client) throw new Error('The database is unavailable. Please retry.')
@@ -365,13 +383,17 @@ function App() {
       if (!application?.interviews?.some((item) => item.id === interviewId)) throw new Error('Save this interview before opening Google Calendar.')
       const interviews = application.interviews.map((item) => item.id === interviewId
         ? { ...item, googleCalendarOpenedAt: new Date().toISOString() } : item)
-      const { data, error: saveError } = await client.from('applications').update({ interviews }).eq('id', applicationId).select(applicationColumns).single()
+      const { data, error: saveError } = await client.from('applications').update({ interviews }).eq('id', applicationId).eq('interviews', JSON.stringify(application.interviews)).select(applicationColumns).single()
       if (!isCurrentAccount(requestEpoch)) throw new Error('Your account changed. Please retry.')
+      if (saveError?.code === 'PGRST116') {
+        await refreshInterviewSchedule(applicationId, requestEpoch)
+        throw new Error('This schedule changed elsewhere. Review the latest interviews and retry Google Calendar.')
+      }
       if (saveError || !data) throw new Error(saveError?.message ?? 'Could not save the calendar tracking status. Please retry.')
       const updated = fromRow(data as ApplicationRow)
       setApplications((current) => current.map((item) => item.id === applicationId ? updated : item))
     } finally {
-      calendarLaunchLock.current = false
+      interviewWriteLock.current = false
       setCalendarLaunchPending(false)
     }
   }

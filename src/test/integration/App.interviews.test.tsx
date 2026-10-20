@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../../app/App'
 
@@ -51,7 +51,7 @@ const applicationRow = {
 function configureSupabase(interviews: typeof applicationRow.interviews = []) {
   const row = { ...applicationRow, interviews }
   const order = vi.fn().mockResolvedValue({ data: [row], error: null })
-  const select = vi.fn(() => ({ order }))
+  const select = vi.fn(() => ({ order, eq: vi.fn(() => ({ single: supabaseMocks.single })) }))
 
   supabaseMocks.single.mockImplementation(async () => {
     const updates = supabaseMocks.update.mock.calls
@@ -61,11 +61,10 @@ function configureSupabase(interviews: typeof applicationRow.interviews = []) {
       error: null,
     }
   })
-  supabaseMocks.update.mockImplementation(() => ({
-    eq: vi.fn(() => ({
-      select: vi.fn(() => ({ single: supabaseMocks.single })),
-    })),
-  }))
+  const query = { eq: vi.fn(), select: vi.fn(() => ({ single: supabaseMocks.single })) }
+  query.eq.mockReturnValue(query)
+  supabaseMocks.update.mockReturnValue(query)
+
   supabaseMocks.from.mockReturnValue({ select, update: supabaseMocks.update })
 }
 
@@ -110,24 +109,25 @@ describe('application interview scheduling', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add interview' }))
     expect(await screen.findByText('Second round')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }))
-
     await waitFor(() => expect(supabaseMocks.update).toHaveBeenCalledWith({
       interviews: [
         expect.objectContaining({ id: expect.any(String), date: '2030-06-12', time: '10:30', notes: 'First round', durationMinutes: 60 }),
         expect.objectContaining({ id: expect.any(String), date: '2030-06-19', time: '13:00', notes: 'Second round', durationMinutes: 60 }),
       ],
     }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Acme — Frontend Engineer' })).toBeNull())
+    expect(screen.getByRole('dialog', { name: 'Acme — Frontend Engineer' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Save schedule' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Manage interviews for Frontend Engineer at Acme' }))
+    expect(screen.getByText('Second round')).toBeTruthy()
   })
 
   it('keeps an incomplete new interview draft open instead of silently discarding it', async () => {
     await openInterviewSchedule()
 
     enterInterviewDraft('2030-06-12', '')
-    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }))
 
-    expect((await screen.findByRole('alert')).textContent).toContain('Add or update the interview draft before saving the schedule.')
+    expect((screen.getByLabelText('Date *') as HTMLInputElement).value).toBe('2030-06-12')
     expect(screen.getByRole('dialog', { name: 'Acme — Frontend Engineer' })).toBeTruthy()
     expect(supabaseMocks.update).not.toHaveBeenCalled()
   })
@@ -138,11 +138,49 @@ describe('application interview scheduling', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     fireEvent.change(screen.getByLabelText('Start time *'), { target: { value: '11:30' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }))
 
-    expect((await screen.findByRole('alert')).textContent).toContain('Add or update the interview draft before saving the schedule.')
+    expect((screen.getByLabelText('Start time *') as HTMLInputElement).value).toBe('11:30')
     expect(screen.getByRole('dialog', { name: 'Acme — Frontend Engineer' })).toBeTruthy()
     expect(supabaseMocks.update).not.toHaveBeenCalled()
+  })
+
+  it('persists edits and deletion, retaining the saved change after a fresh load', async () => {
+    configureSupabase([{ id: 'round', date: '2030-06-12', time: '10:30', notes: 'Original' }])
+    await openInterviewSchedule()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Persisted edit' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Update interview' }))
+    await screen.findByText('Persisted edit')
+    const saved = supabaseMocks.update.mock.calls[0][0].interviews
+    cleanup()
+    configureSupabase(saved)
+    await openInterviewSchedule()
+    expect(screen.getByText('Persisted edit')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByText('Persisted edit')).toBeNull())
+    expect(supabaseMocks.update).toHaveBeenLastCalledWith({ interviews: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Manage interviews for Frontend Engineer at Acme' }))
+    expect(screen.getByText('No interviews scheduled yet.')).toBeTruthy()
+  })
+
+  it('rejects a stale schedule write, refreshes committed interviews, and retries without losing either round', async () => {
+    await openInterviewSchedule()
+    const external = { id: 'external', date: '2030-06-20', time: '12:00', notes: 'Other device round' }
+    // Simulate the JSONB compare failing after another device adds an interview.
+    supabaseMocks.single.mockResolvedValueOnce({ data: null, error: { code: 'PGRST116', message: 'No matching row' } })
+    supabaseMocks.single.mockResolvedValueOnce({ data: { ...applicationRow, interviews: [external] }, error: null })
+    enterInterviewDraft('2030-06-12', '10:30', 'My round')
+    fireEvent.click(screen.getByRole('button', { name: 'Add interview' }))
+    await screen.findByText('Other device round')
+    expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('changed elsewhere'))).toBe(true)
+    expect((screen.getByLabelText('Notes') as HTMLTextAreaElement).value).toBe('My round')
+    const updateQuery = supabaseMocks.update.mock.results[0].value
+    expect(updateQuery.eq).toHaveBeenCalledWith('interviews', '[]')
+    fireEvent.click(screen.getByRole('button', { name: 'Add interview' }))
+    await screen.findByText('My round')
+    expect(supabaseMocks.update).toHaveBeenLastCalledWith({ interviews: [external, expect.objectContaining({ notes: 'My round' })] })
+    expect(updateQuery.eq).toHaveBeenLastCalledWith('interviews', JSON.stringify([external]))
   })
 
   it('shows only future interviews in chronological order and opens the associated application skills', async () => {

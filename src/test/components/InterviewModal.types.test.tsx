@@ -16,7 +16,6 @@ describe('Interview type selection', () => {
     expect((screen.getByLabelText('Interview type') as HTMLSelectElement).value).toBe('Other')
     expect((screen.getByLabelText('Custom interview type') as HTMLInputElement).value).toBe('Portfolio review')
     fireEvent.click(screen.getByRole('button', { name: 'Update interview' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }))
     expect(onSave.mock.calls[0][1][0].type).toBe('Portfolio review')
   })
   it('keeps an untyped legacy interview optional and can select a predefined type', () => {
@@ -25,7 +24,6 @@ describe('Interview type selection', () => {
     expect((screen.getByLabelText('Interview type') as HTMLSelectElement).value).toBe('')
     fireEvent.change(screen.getByLabelText('Interview type'), { target: { value: 'Technical' } })
     fireEvent.click(screen.getByRole('button', { name: 'Update interview' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }))
     expect(onSave.mock.calls[0][1][0].type).toBe('Technical')
   })
 })

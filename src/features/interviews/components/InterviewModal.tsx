@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { X } from 'lucide-react'
 import type { Application, Interview } from '../../../shared/types'
@@ -26,13 +26,12 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
   const [error, setError] = useState<string | null>(null)
   const [scheduleSaving, setScheduleSaving] = useState(false)
   const [calendarSaving, setCalendarSaving] = useState(false)
+  const operationPending = useRef(false)
+  const [savedMessage, setSavedMessage] = useState('')
   const saving = scheduleSaving || calendarSaving || calendarLaunchPending
 
   useEffect(() => {
-    setInterviews((current) => current.map((interview) => {
-      const persisted = application.interviews?.find((item) => item.id === interview.id)
-      return persisted?.googleCalendarOpenedAt ? { ...interview, googleCalendarOpenedAt: persisted.googleCalendarOpenedAt } : interview
-    }))
+    setInterviews(application.interviews ?? [])
   }, [application.interviews])
 
   function resetForm() {
@@ -48,8 +47,9 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
     setError(null)
   }
 
-  function submitInterview(event: FormEvent<HTMLFormElement>) {
+  async function submitInterview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (operationPending.current || saving) return
     if (!isValidInterviewDateTime(date, time)) {
       setError('Please choose a valid interview date and start time.')
       return
@@ -69,6 +69,10 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
         return
       }
     }
+    if (editingId && !interviews.some((item) => item.id === editingId)) {
+      setError('This interview was deleted elsewhere. Copy your draft or clear it to add a new interview.')
+      return
+    }
     const interview: Interview = {
       ...interviews.find((item) => item.id === editingId),
       type: type === 'Other' ? customType.trim() || 'Other' : type.trim(), location: location.trim(), meetingLink: meetingLink.trim(), durationMinutes: duration,
@@ -77,10 +81,37 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
       time,
       notes: notes.trim(),
     }
-    setInterviews((current) => editingId
-      ? current.map((item) => item.id === editingId ? interview : item)
-      : [...current, interview])
-    resetForm()
+    const next = editingId
+      ? interviews.map((item) => item.id === editingId ? interview : item)
+      : [...interviews, interview]
+    if (await persistInterviews(next, editingId ? 'Interview updated.' : 'Interview added.')) resetForm()
+  }
+
+  async function persistInterviews(next: Interview[], message: string): Promise<boolean> {
+    if (operationPending.current || saving) return false
+    operationPending.current = true
+    setScheduleSaving(true)
+    setSavedMessage('')
+    setError(null)
+    try {
+      const saveError = await onSave(application.id, next)
+      if (saveError) throw new Error(saveError)
+      setInterviews(next)
+      setSavedMessage(message)
+      return true
+    } catch (reason) {
+      setError(`Could not save interview changes: ${reason instanceof Error ? reason.message : 'Please try again.'}`)
+      return false
+    } finally {
+      operationPending.current = false
+      setScheduleSaving(false)
+    }
+  }
+
+  async function deleteInterview(id: string) {
+    if (await persistInterviews(interviews.filter((item) => item.id !== id), 'Interview deleted.')) {
+      if (editingId === id) resetForm()
+    }
   }
 
   function editInterview(interview: Interview) {
@@ -97,31 +128,21 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
     setError(null)
   }
 
-  async function saveSchedule() {
-    if (editingId || date || time || notes.trim() || type.trim() || location.trim() || meetingLink.trim() || durationMinutes !== '60') {
-      setError('Add or update the interview draft before saving the schedule.')
-      return
-    }
-
-    setScheduleSaving(true)
-    setError(null)
-    const saveError = await onSave(application.id, interviews)
-    setScheduleSaving(false)
-    if (saveError) setError(`Could not save interview schedule: ${saveError}`)
-    else onClose()
+  function closeEditor() {
+    if (!operationPending.current && !saving) onClose()
   }
 
   const sortedInterviews = [...interviews].sort((a, b) => getInterviewTimestamp(a) - getInterviewTimestamp(b))
 
-  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose() }}>
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor() }}>
     <section className="modal" role="dialog" aria-modal="true" aria-labelledby="interview-modal-title">
       <header className="modal-header">
         <div><div className="eyebrow">INTERVIEW SCHEDULE</div><h2 id="interview-modal-title">{application.company} — {application.role}</h2></div>
-        <button className="icon-button" aria-label="Close" onClick={onClose} disabled={saving}><X size={18} /></button>
+        <button className="icon-button" aria-label="Close" onClick={closeEditor} disabled={saving}><X size={18} /></button>
       </header>
 
       <div style={{ display: 'grid', gap: '16px' }}>
-        <p className="muted-text" style={{ margin: 0 }}>Save interview changes before adding them to Google Calendar. Edits and deletions here do not update Google Calendar; manage existing events there.</p>
+        <p className="muted-text" style={{ margin: 0 }}>Adding, updating, or deleting an interview saves it immediately. Edits and deletions here do not update Google Calendar; manage existing events there.</p>
         <div style={{ display: 'grid', gap: '8px' }}>
           {sortedInterviews.length === 0
             ? <p className="muted-text" style={{ margin: 0 }}>No interviews scheduled yet.</p>
@@ -134,26 +155,27 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
                   {interview.notes && <div style={{ fontSize: '11px', color: '#6e7082', marginTop: '3px' }}>{interview.notes}</div>}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '100%' }}>
-                  <GoogleCalendarButton application={application} interview={interview} disabled={saving || editingId === interview.id || JSON.stringify({ ...interview, googleCalendarOpenedAt: undefined }) !== JSON.stringify({ ...application.interviews?.find((item) => item.id === interview.id), googleCalendarOpenedAt: undefined })} onRecordLaunch={async (id) => {
+                  <GoogleCalendarButton application={application} interview={interview} disabled={saving || editingId === interview.id} onRecordLaunch={async (id) => {
+                    if (operationPending.current || saving) throw new Error('Wait for the interview changes to finish saving.')
+                    operationPending.current = true
                     setCalendarSaving(true)
                     try {
                       await onRecordLaunch(id)
-                      setInterviews((current) => current.map((item) => item.id === id ? { ...item, googleCalendarOpenedAt: new Date().toISOString() } : item))
                     } finally {
+                      operationPending.current = false
                       setCalendarSaving(false)
                     }
                   }} />
                   <button type="button" className="text-button" onClick={() => editInterview(interview)} disabled={saving}>Edit</button>
-                  <button type="button" className="text-button danger" onClick={() => {
-                    setInterviews((current) => current.filter((item) => item.id !== interview.id))
-                    if (editingId === interview.id) resetForm()
-                  }} disabled={saving}>Delete</button>
+                  <button type="button" className="text-button danger" onClick={() => void deleteInterview(interview.id)} disabled={saving}>Delete</button>
                 </div>
               </div>
             ))}
         </div>
 
         <form onSubmit={submitInterview} style={{ display: 'grid', gap: '12px' }}>
+          {scheduleSaving && <p role="status" className="muted-text">Saving interview changes…</p>}
+          {savedMessage && !saving && <p role="status" className="muted-text">{savedMessage}</p>}
           {error && <div className="storage-message storage-error" role="alert">{error}</div>}
           <div className="form-grid">
             <label className="field"><span>Date <i>*</i></span><input type="date" required value={date} onChange={(event) => setDate(event.target.value)} disabled={saving} /></label>
@@ -175,14 +197,13 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
           </div>
           <div className="modal-actions">
             <button type="button" className="text-button" onClick={resetForm} disabled={saving || (!date && !time && !notes && !type && !location && !meetingLink && durationMinutes === '60' && !editingId)}>Clear</button>
-            <button className="primary-button" type="submit" disabled={saving}>{editingId ? 'Update interview' : 'Add interview'}</button>
+            <button className="primary-button" type="submit" disabled={saving}>{scheduleSaving ? 'Saving…' : editingId ? 'Update interview' : 'Add interview'}</button>
           </div>
         </form>
       </div>
 
       <div className="modal-actions" style={{ marginTop: '18px' }}>
-        <button type="button" className="text-button" onClick={onClose} disabled={saving}>Cancel</button>
-        <button className="primary-button" type="button" onClick={() => void saveSchedule()} disabled={saving}>{saving ? 'Saving…' : 'Save schedule'}</button>
+        <button type="button" className="text-button" onClick={closeEditor} disabled={saving}>Done</button>
       </div>
     </section>
   </div>
