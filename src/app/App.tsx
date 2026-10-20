@@ -46,7 +46,7 @@ function App() {
   const [dataLoading, setDataLoading] = useState(false)
   const [activeStatus, setActiveStatus] = useState<Status | 'All'>('All')
   const [search, setSearch] = useState('')
-  const [applicationSort, setApplicationSort] = useState<ApplicationSort>('newest')
+  const [applicationSort, setApplicationSort] = useState<ApplicationSort>('status')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [interviewEditorApplicationId, setInterviewEditorApplicationId] = useState<string | null>(null)
   const [editingApplication, setEditingApplication] = useState<Application | null>(null)
@@ -626,7 +626,7 @@ function App() {
             <div className="tabs" role="tablist" aria-label="Filter by status">
               {(['All', ...statuses] as const).map((status) => <button key={status} role="tab" aria-selected={activeStatus === status} className={`tab ${activeStatus === status ? 'tab-active' : ''}`} onClick={() => setActiveStatus(status)}>{status}<span>{status === 'All' ? applications.length : applications.filter((item) => item.status === status).length}</span></button>)}
             </div>
-            <div className="toolbar-actions"><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search roles..." /></label><label className="sort-control"><span className="sr-only">Sort applications</span><select value={applicationSort} onChange={(event) => setApplicationSort(event.target.value as ApplicationSort)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="next-interview">Next interview</option></select></label></div>
+            <div className="toolbar-actions"><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search roles..." /></label><label className="sort-control"><span className="sr-only">Sort applications</span><select value={applicationSort} onChange={(event) => setApplicationSort(event.target.value as ApplicationSort)}><option value="status">Status</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="next-interview">Next interview</option></select></label></div>
           </div>
           {dataLoading ? <div className="empty-state"><p>Loading your applications…</p></div> : visibleApplications.length > 0 ? (
             <div className="table-wrap"><table><thead><tr><th>COMPANY & ROLE</th><th>DATE APPLIED</th><th>STATUS</th><th>NEXT STEP</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
