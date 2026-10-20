@@ -3,7 +3,7 @@
   "repository": "Coreyboy1820/job-application-tracker",
   "project": "appgprj_6aca682dbe0c819190f4d76b28122aec",
   "audience": "public",
-  "revision": 6,
+  "revision": 7,
   "operationIds": [
     "268cc303-588a-42b8-b8fd-b143a5f03f51",
     "7e3c5652-2463-4b6f-b130-fd51eae07115",
@@ -11,7 +11,8 @@
     "87927cc5-1d44-48b9-a26e-b5c7988ae43a",
     "58f9aa3e-5b4e-4ff2-adad-2919e52807f8",
     "88a8f2ae-36c7-448f-bbfb-e40d5a189741",
-    "366f27a2-d6a0-4a67-a9ca-c0333cfec347"
+    "366f27a2-d6a0-4a67-a9ca-c0333cfec347",
+    "829bb942-01d8-43c6-b080-9a6bff6d61ec"
   ],
   "owner": "20c3af35-a3c8-4e31-a654-d815f0bab6a2",
   "releases": [
@@ -26,7 +27,8 @@
         "archiveSha256": "49acfe2a7f3fb9a4cffb123c2d3310dbf4cbf03c5198cf6200406674d61dcbeb",
         "sitesSourceSha": "8eed2d133f14105b9958e2fba3dd8a02f6d56232"
       },
-      "status": "pending"
+      "status": "pending",
+      "versionId": "appgprj_6aca682dbe0c819190f4d76b28122aec~appgver_2e547bf791cc8191ba8c93cac862c05e"
     }
   ]
 }
