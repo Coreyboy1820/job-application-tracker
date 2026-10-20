@@ -30,6 +30,6 @@ The wiki is published separately from application code. Reviewable pages and san
 
 The target [GitHub wiki](https://github.com/Coreyboy1820/job-application-tracker/wiki) is not published yet: GitHub currently keeps Wiki disabled despite administrator enable requests. The [maintenance guide](docs/wiki/Maintenance.md) records the publishing restriction and activation steps.
 
-## Private website delivery
+## Website delivery
 
-Rolecall is hosted privately on [ChatGPT Sites](https://rolecall-private.tealcrow6.chatgpt.site). CI prepares tested main-branch build artifacts; automatic publication is not configured yet. See [Sites delivery](docs/sites-delivery.md) for the current limitation, release procedure, and remaining work in issue #59.
+Rolecall is hosted publicly on [ChatGPT Sites](https://rolecall-private.tealcrow6.chatgpt.site). CI prepares tested main-branch build artifacts; automatic publication is not configured yet. See [Sites delivery](docs/sites-delivery.md) for the current limitation, release procedure, and remaining work in issue #59.

@@ -1,8 +1,9 @@
 # Rolecall Sites delivery
 
-Issue #59 preparation, verified 2026-10-10. **Automatic production deployment is
-not configured.** CI prepares tested deployment candidates; publication still
-requires an authenticated Sites operation. Keep #59 open until an unattended
+Issue #59 preparation, rechecked October 19, 2026. **Automatic production deployment is
+not configured.** CI prepares and verifies tested deployment candidates; publication still
+requires an authenticated Sites operation. Cloud bridge setup and readiness
+checks are in [deployment task setup](sites-auto-deploy-task.md). Keep #59 open until an unattended
 route is implemented and verified with a merged commit.
 
 ## Existing destination
@@ -10,8 +11,9 @@ route is implemented and verified with a merged commit.
 - URL: https://rolecall-private.tealcrow6.chatgpt.site
 - Project: `appgprj_6aca682dbe0c819190f4d76b28122aec`
 - Configuration: `.openai/hosting.json`, static directory `dist`
-- Access: owner-only. The last access read returned custom access with one user
-  and no groups. Recheck current ownership and audience before each publication.
+- Access: public. The owner explicitly confirmed preserving public access on
+  October 19, 2026, superseding issue #59's original owner-only requirement.
+  Recheck current ownership and audience before each publication; stop on drift.
 
 The GitHub repository is the application source of truth. Sites has a separate
 source repository: a GitHub commit SHA is not automatically a Sites source SHA.
@@ -34,7 +36,8 @@ contains:
 
 - `sites-build.tar.gz`: only `dist` and `.openai/hosting.json`
 - `release.json`: source SHA, repository, CI run/attempt, destination, and an
-  explicit awaiting-publication status
+  explicit awaiting-publication status, schema version, workflow/ref/event, and
+  expected public audience
 - `SHA256SUMS`: archive/metadata checksums for download verification
 
 Build assets contain the browser publishable configuration, as they do in the
@@ -43,6 +46,31 @@ secrets. Read permission on this private GitHub repository is required to downlo
 its artifacts. Workflow summaries distinguish candidate preparation from a live
 release. New runs cancel superseded CI for the same ref; this does not provide a
 production deployment lock because no automated deployment is running.
+
+## Candidate verification
+
+CI runs the candidate helper's behavior tests and packages with
+`node scripts/sites-candidate.mjs package release`. Packaging checks the hosting
+identity and archive contents. A publisher must independently obtain authenticated
+GitHub run metadata and current main before using:
+
+```sh
+node scripts/sites-candidate.mjs verify /path/to/candidate /path/to/trusted-context.json
+```
+
+The context object requires `repository`, `source_sha`, `current_main_sha`,
+`run_id`, `run_attempt`, `workflow`, `event`, `ref`, and `conclusion`. Use the exact
+repository, workflow path `.github/workflows/build.yml`, event `push`, ref
+`refs/heads/main`, and successful conclusion from GitHub; both SHA values must
+match current main. Never construct this context from the downloaded artifact.
+
+Verification checks fixed candidate filenames and checksums, expected metadata,
+hosting configuration, required files, and archive member paths/types before
+extraction. Links, traversal, duplicate entries, and unexpected members are
+rejected; decompressed tar content is capped at 100 MiB. It does not download
+artifacts, extract files, authenticate GitHub, lock publication, or deploy.
+A passing check is point-in-time evidence; recheck main under the publication
+lock immediately before saving/deploying.
 
 ## Verified platform limitation
 
@@ -61,8 +89,8 @@ integrations cannot exist.
 A GitHub-triggered or scheduled cloud task is a possible bridge to investigate,
 but its ability to obtain this private repository, successful CI artifacts, and
 Sites publication authorization must be verified in a fresh cloud run. Local
-`gh` authentication does not establish cloud access. The GitHub plugin was not
-connected during this investigation. A polling schedule also differs from
+`gh` authentication does not establish cloud access. The GitHub plugin is now connected and can read this private repository in
+this conversation; access from a fresh cloud task remains unverified. A polling schedule also differs from
 immediate merge-triggered publishing; do not silently treat them as equivalent.
 
 ## Supported authenticated publication
@@ -75,7 +103,7 @@ Use the Sites skill and native tools from an authenticated ChatGPT session:
    authenticated GitHub run metadata. Checksums alone do not prove provenance.
 2. Obtain the GitHub source at that exact SHA in an isolated checkout; keep local
    environment files and credentials outside tracked source. Read the current
-   Site and confirm owner-only access. Reuse the existing project identity.
+   Site and confirm public access. Reuse the existing project identity.
 3. Obtain a fresh Sites source-write credential through the supported native
    operation. Keep it in session memory; pass it only through the source helper's
    hidden stdin. Open the existing Site checkout before changing its source.
@@ -85,9 +113,9 @@ Use the Sites skill and native tools from an authenticated ChatGPT session:
    configuration. Use the Sites source workflow to push that matching source and
    package its static output. Retain the helper's verified **Sites** source SHA
    and archive; record the originating GitHub SHA separately.
-5. Recheck for a newer main commit before publishing. Use the owner-private
-   save-and-deploy operation with the helper's exact source SHA and archive.
-   Do not change sharing settings or use a public operation as a fallback.
+5. Recheck for a newer main commit before publishing. Use the normal public-audience
+   save-then-deploy operations with the helper's exact source SHA and archive.
+   Do not change sharing settings or use private-only operations.
 6. Poll only nonterminal deployments. Report success only when status is
    `succeeded` with its URL. Record GitHub SHA/run, Sites source SHA, saved version
    ID, deployment ID, and outcome in the release record/issue. Failed publication
@@ -106,8 +134,8 @@ If a credential expires, obtain another through the native tool; never reuse or
 log expired tokens. Investigate terminal deployment failures before retrying.
 
 For rollback, select a previously successful saved Site version from the native
-version listing, confirm current owner-only access, and deploy that saved version
-using the private deployment operation. Poll to a terminal result and record both
+version listing, confirm current public access, and deploy that saved version
+using the normal deployment operation. Poll to a terminal result and record both
 GitHub/source and Site version provenance. A temporary rollback may intentionally
 use an older version; stop any publisher first and document the override. Keep
 GitHub history intact and use a corrective commit for the next normal release.
@@ -119,6 +147,23 @@ Supabase migrations and Edge Function deployment are separate releases.
 Identify supported unattended authentication and a trigger/bridge with verified
 private GitHub access. Implement successful-main gating, exact artifact/source
 transfer, serialized publication, stale-run protection, deployment status and
-rollback records. Test failed CI, concurrent merges, publication failure, private
+rollback records. Test failed CI, concurrent merges, publication failure, public
 access, and a real merged commit before closing the issue. The candidate workflow
 in this PR is preparation for that work, not completed continuous deployment.
+
+## Current follow-up evidence
+
+On October 19, 2026, PR #60 remained open/draft with passing original CI.
+Both required GitHub variable names were present. Main had successful push CI,
+but the candidate workflow was not merged, so those runs did not establish
+candidate upload. The current Site is active, public, owner-managed, and has
+no linked automations. No sharing change or deployment was made in this follow-up.
+
+Official documentation now establishes GitHub PR-merge event tasks on ChatGPT
+web/mobile, and a separate Workspace Agent trigger API. Neither is a direct
+Sites deployment API. The current tools cannot configure an event task or start
+a fresh cloud run, and no published Workspace Agent API channel/token is
+configured. See [deployment task setup](sites-auto-deploy-task.md) for the exact
+readiness check, stop conditions, and deployment requirements. The production
+lock, release ledger, cloud publication path, and end-to-end tests remain open;
+artifact verification alone does not complete automatic deployment.

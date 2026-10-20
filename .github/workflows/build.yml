@@ -27,6 +27,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Test Sites candidate validation
+        run: node --test scripts/sites-candidate.node-test.mjs
       - name: Build app
         run: npm run build
         env:
@@ -42,25 +44,7 @@ jobs:
         run: |
           test -n "$VITE_SUPABASE_URL" || { echo 'Missing VITE_SUPABASE_URL repository variable'; exit 1; }
           test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || { echo 'Missing VITE_SUPABASE_PUBLISHABLE_KEY repository variable'; exit 1; }
-          test -f dist/index.html
-          mkdir -p release
-          tar -czf release/sites-build.tar.gz .openai/hosting.json dist
-          node --input-type=module <<'NODE'
-          import { readFileSync, writeFileSync } from 'node:fs'
-          const hosting = JSON.parse(readFileSync('.openai/hosting.json', 'utf8'))
-          const metadata = {
-            repository: process.env.GITHUB_REPOSITORY,
-            source_sha: process.env.GITHUB_SHA,
-            run_id: process.env.GITHUB_RUN_ID,
-            run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-            workflow_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
-            project_id: hosting.project_id,
-            site_url: 'https://rolecall-private.tealcrow6.chatgpt.site',
-            publication_status: 'awaiting_authenticated_sites_publication'
-          }
-          writeFileSync('release/release.json', JSON.stringify(metadata, null, 2) + '\n')
-          NODE
-          (cd release && sha256sum sites-build.tar.gz release.json > SHA256SUMS)
+          node scripts/sites-candidate.mjs package release
       - name: Retain tested Sites build
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
@@ -74,4 +58,4 @@ jobs:
         run: |
           echo '### Sites deployment candidate ready' >> "$GITHUB_STEP_SUMMARY"
           echo "Tested source: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-          echo 'The artifact is ready for authenticated owner-private Sites publication. Automatic publication is not configured; see docs/sites-delivery.md and issue #59.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The artifact is ready for authenticated public Sites publication. Automatic publication is not configured; see docs/sites-delivery.md and issue #59.' >> "$GITHUB_STEP_SUMMARY"
