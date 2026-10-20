@@ -139,3 +139,28 @@ test('failed publication evidence must identify a saved version even before depl
   const finished = transition(state, command('finish', { releaseId, status: 'failed', evidence: { ...evidence, publication: 'failed', versionId: 'saved-v1' } }))
   assert.equal(finished.releases[0].status, 'failed')
 })
+
+
+test('failure without publication IDs cannot release an ambiguous lock', () => {
+  const state = begun()
+  assert.throws(() => transition(state, command('finish', { releaseId, status: 'failed', evidence: { ...evidence, publication: 'failed' } })), /recorded publication identifier/)
+  assert.throws(() => transition(state, command('unlock')), /retains/)
+})
+
+test('rollback retains provenance and ownership through a new terminal deployment', () => {
+  const original = success()
+  const rollbackId = randomUUID()
+  const pending = transition(original, command('begin-rollback', { releaseId: rollbackId, rollbackOf: releaseId }))
+  assert.equal(pending.releases[1].versionId, 'v1')
+  assert.deepEqual(pending.releases[1].provenance, provenance)
+  assert.throws(() => transition(pending, command('unlock')), /retains/)
+  assert.throws(() => transition(pending, command('record', { releaseId: rollbackId, versionId: 'v2' })), /immutable/)
+  assert.throws(() => transition(pending, command('record', { releaseId: rollbackId, deploymentId: 'd1' })), /already recorded/)
+  const recorded = transition(pending, command('record', { releaseId: rollbackId, deploymentId: 'rollback-d1' }))
+  const done = transition(recorded, command('finish', { releaseId: rollbackId, status: 'succeeded', evidence: { ...evidence, publication: 'succeeded', versionId: 'v1', deploymentId: 'rollback-d1' } }))
+  assert.equal(transition(done, command('unlock')).owner, null)
+  assert.deepEqual(done.releases[0], original.releases[0])
+  assert.throws(() => transition(done, command('begin', { releaseId: randomUUID(), provenance })), /already published/)
+  assert.throws(() => transition(original, command('begin-rollback', { releaseId: randomUUID(), rollbackOf: randomUUID() })), /successful release target/)
+  assert.throws(() => validateState({ ...done, releases: [done.releases[1], done.releases[0]] }), /earlier successful/)
+})

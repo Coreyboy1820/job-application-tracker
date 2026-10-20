@@ -133,12 +133,12 @@ expired, produce another validated build for the intended source before publishi
 If a credential expires, obtain another through the native tool; never reuse or
 log expired tokens. Investigate terminal deployment failures before retrying.
 
-For rollback, select a previously successful saved Site version from the native
-version listing, confirm current public access, and deploy that saved version
-using the normal deployment operation. Poll to a terminal result and record both
-GitHub/source and Site version provenance. A temporary rollback may intentionally
-use an older version; stop any publisher first and document the override. Keep
-GitHub history intact and use a corrective commit for the next normal release.
+For rollback, follow the [serialized rollback protocol](sites-publication-state.md#serialized-rollback).
+It retains the lock and appends a pending rollback referencing a prior successful
+release and its saved version, then records a new terminal deployment receipt.
+Stop the publisher first and keep it disabled until a corrective release is ready.
+Keep GitHub history intact. Local state-machine coverage does not establish a
+verified live Sites rollback.
 
 Supabase migrations and Edge Function deployment are separate releases.
 
@@ -180,3 +180,15 @@ merges). The web chat opened Sites source
 No publication, sharing change, or schedule was made. This is reported web-chat
 evidence, not proof of a fresh unattended run. Candidate download/verification
 moves to the post-merge check; production publishing stays disabled meanwhile.
+
+
+## Verification task follow-up
+
+The owner reported creating **Verify Rolecall publication lock**, enabled for
+GitHub PR-merge events in this repository, with its prompt restricting action to
+main merges. It is verification-only and prohibits publishing and sharing
+changes. Its immediate-run request was rejected: “Run now is available only for
+ordinary cloud-scheduled tasks.” No cloud execution occurred. State was read at
+revision 2, owner null, no releases; the Site remained public. The task ID,
+configuration receipt, and cloud execution URL remain outstanding. This updates
+the earlier setup report without treating a saved task as a working publisher.

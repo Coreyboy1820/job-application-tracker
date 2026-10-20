@@ -49,6 +49,7 @@ Commands share `action`, `owner`, and `operationId`:
 | --- | --- | --- |
 | `acquire` | None | Acquires only an unlocked state; no expiry or takeover. |
 | `begin` | `releaseId` (v4 UUID), `provenance` | Appends a pending record before any Sites save/deploy. |
+| `begin-rollback` | `releaseId` (new v4 UUID), `rollbackOf` (prior successful normal release ID) | Appends a pending rollback with the target provenance and immutable saved version. |
 | `record` | `releaseId`, `versionId` and/or `deploymentId` | Attaches observed IDs; existing IDs cannot change. |
 | `finish` | `releaseId`, `status`, `evidence` | Records an observed terminal outcome; does not release ownership. |
 | `unlock` | None | Releases only when no pending record remains. |
@@ -64,7 +65,9 @@ all prior release records; terminal records cannot be edited by these commands.
 `status` is `succeeded` or `failed`. `evidence` contains canonical ISO `observedAt`,
 a concrete `observation`, `publication`, and `terminalConfirmed: true`.
 Success requires matching recorded and observed `versionId` and `deploymentId`.
-For failure, record a verified terminal failed deployment with its matching ID,
+Failure evidence with `publication: "failed"` requires at least a recorded saved
+version identifier and a matching observation; a bare failure assertion cannot
+release an ambiguous pre-ID lock. For failure, record a verified terminal failed deployment with its matching ID,
 or verified `publication: "not-started"` with `noSideEffects: true` and no
 recorded publication IDs. An exception, timeout, or completed agent conversation
 is not terminal evidence. The helper validates caller-supplied evidence; the
@@ -134,3 +137,24 @@ unlocked. Revision advanced from 0 to 2, leaving owner null and no releases.
 The resulting blob SHA was `4cad212516d4b32acc33565bdc622f299d04c850`.
 No Sites operation was invoked. This demonstrates GitHub persistence and CAS
 from this session; it does not establish unattended cloud authorization.
+
+## Serialized rollback
+
+Disable the production publisher and confirm all prior executions have stopped.
+Reconcile any existing pending release before acquiring a fresh owner lock; never
+steal a lock. Read the current Site audience and list saved versions. Select an
+earlier successful normal release in this ledger whose version is still available.
+Use `begin-rollback` with a new `releaseId` and `rollbackOf` set to that release ID.
+Read back the pending record, copied provenance, saved version, and ownership.
+Deploy that saved version through the supported public deployment operation;
+record the **new** deployment ID, poll to terminal, then `finish` with matching
+version/deployment evidence and explicitly `unlock`. Do not save another version
+or use normal `begin` to bypass duplicate protection. Failure/ambiguity retains
+the same reconciliation rules as normal publication.
+
+The append-only rollback record references the original release; it never changes
+its receipt. An unrecorded historical Site version is not eligible for this helper
+rollback. Leave production publishing disabled until a corrective current-main
+release is ready; a duplicate success record is not proof of what is currently
+live after rollback. Live rollback remains unverified until the actual Sites
+operation and terminal receipt are exercised.

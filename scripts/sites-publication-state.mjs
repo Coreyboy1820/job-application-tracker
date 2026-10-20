@@ -30,6 +30,7 @@ function evidenceValid(value, release) {
   if (value.versionId !== undefined && value.versionId !== release.versionId) fail('Observed version mismatch')
   if (value.deploymentId !== undefined && value.deploymentId !== release.deploymentId) fail('Observed deployment mismatch')
   if (value.publication === 'not-started' && (value.noSideEffects !== true || release.versionId || release.deploymentId)) fail('Recorded publication cannot be not-started')
+  if (value.publication === 'failed' && !release.versionId) fail('Failure requires a recorded publication identifier; reconcile unknown outcomes first')
   if (value.publication === 'failed' && release.versionId && value.versionId !== release.versionId) fail('Failure must identify recorded version')
   if (value.publication === 'failed' && release.deploymentId && value.deploymentId !== release.deploymentId) fail('Failure must identify recorded deployment')
 }
@@ -44,19 +45,28 @@ export function validateState(state) {
   if (state.schema !== 1 || state.repository !== repository || state.project !== project || state.audience !== 'public' || !Number.isSafeInteger(state.revision) || state.revision < 0 || !Array.isArray(state.operationIds) || state.operationIds.length !== state.revision + 1 || state.operationIds.some(id => !uuid(id)) || new Set(state.operationIds).size !== state.operationIds.length || (state.owner !== null && !uuid(state.owner)) || !Array.isArray(state.releases)) fail('Invalid publication state')
   const ids = new Set()
   const successes = []
+  const deployments = new Set()
   let pending = 0
   for (const release of state.releases) {
-    keys(release, ['id', 'owner', 'provenance', 'status', 'versionId', 'deploymentId', 'evidence'], ['id', 'owner', 'provenance', 'status'])
+    keys(release, ['id', 'owner', 'provenance', 'status', 'versionId', 'deploymentId', 'evidence', 'rollbackOf'], ['id', 'owner', 'provenance', 'status'])
     if (!uuid(release.id) || ids.has(release.id) || !uuid(release.owner) || !['pending', 'succeeded', 'failed'].includes(release.status)) fail('Invalid release record')
+    if (release.rollbackOf !== undefined) {
+      const target = state.releases.find(previous => previous.id === release.rollbackOf && ids.has(previous.id))
+      if (!target || target.status !== 'succeeded' || target.rollbackOf !== undefined || !object(release.provenance) || Object.keys(target.provenance).some(key => target.provenance[key] !== release.provenance[key]) || release.versionId !== target.versionId) fail('Rollback must reference an earlier successful release and its saved version')
+    }
     ids.add(release.id)
     provenanceValid(release.provenance)
     for (const key of ['versionId', 'deploymentId']) if (release[key] !== undefined && !string(release[key])) fail('Invalid publication ID')
+    if (release.deploymentId) {
+      if (deployments.has(release.deploymentId)) fail('Deployment identifier already recorded for another release')
+      deployments.add(release.deploymentId)
+    }
     if (release.deploymentId && !release.versionId) fail('Deployment requires a saved version')
     if (release.status === 'pending') {
       pending++
       if (release.owner !== state.owner || release.evidence !== undefined) fail('Pending release must retain its owner lock')
     } else evidenceValid(release.evidence, release)
-    if (release.status === 'succeeded') {
+    if (release.status === 'succeeded' && release.rollbackOf === undefined) {
       if (successes.some(previous => previous.sourceSha === release.provenance.sourceSha || previous.artifactId === release.provenance.artifactId)) fail('Duplicate successful source or artifact')
       successes.push(release.provenance)
     }
@@ -69,8 +79,8 @@ export function validateState(state) {
 // Commands are explicit mutations. Every change preserves all prior records and advances revision.
 export function transition(state, command) {
   validateState(state)
-  keys(command, ['action', 'owner', 'operationId', 'releaseId', 'provenance', 'versionId', 'deploymentId', 'status', 'evidence'], ['action', 'owner', 'operationId'])
-  const actionFields = { acquire: [], unlock: [], begin: ['releaseId', 'provenance'], record: ['releaseId', 'versionId', 'deploymentId'], finish: ['releaseId', 'status', 'evidence'] }
+  keys(command, ['action', 'owner', 'operationId', 'releaseId', 'provenance', 'versionId', 'deploymentId', 'status', 'evidence', 'rollbackOf'], ['action', 'owner', 'operationId'])
+  const actionFields = { acquire: [], unlock: [], begin: ['releaseId', 'provenance'], 'begin-rollback': ['releaseId', 'rollbackOf'], record: ['releaseId', 'versionId', 'deploymentId'], finish: ['releaseId', 'status', 'evidence'] }
   if (!Object.hasOwn(actionFields, command.action)) fail('Unknown publication action')
   keys(command, ['action', 'owner', 'operationId', ...actionFields[command.action]], ['action', 'owner', 'operationId'])
   if (!uuid(command.owner) || !uuid(command.operationId) || state.operationIds.includes(command.operationId)) fail('Unique owner and operation UUIDs required')
@@ -84,6 +94,11 @@ export function transition(state, command) {
     if (command.action === 'unlock') {
       if (pending) fail('Pending release retains its lock until observed terminal evidence is recorded')
       next.owner = null
+    } else if (command.action === 'begin-rollback') {
+      if (pending || !uuid(command.releaseId) || next.releases.some(release => release.id === command.releaseId)) fail('Invalid or already pending release')
+      const target = next.releases.find(release => release.id === command.rollbackOf && release.status === 'succeeded' && release.rollbackOf === undefined)
+      if (!target) fail('Rollback requires a successful release target')
+      next.releases.push({ id: command.releaseId, owner: command.owner, provenance: structuredClone(target.provenance), rollbackOf: target.id, versionId: target.versionId, status: 'pending' })
     } else if (command.action === 'begin') {
       if (pending || !uuid(command.releaseId) || next.releases.some(release => release.id === command.releaseId)) fail('Invalid or already pending release')
       provenanceValid(command.provenance)

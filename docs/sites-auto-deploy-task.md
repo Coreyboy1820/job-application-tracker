@@ -1,7 +1,11 @@
 # Rolecall deployment task setup
 
-Status: proposed cloud bridge, not enabled or verified. Repository preparation is
-tracked in PR #60. Saving a task does not prove it can deploy the Site.
+Status: an enabled **verification-only** GitHub PR-merge task named **Verify
+Rolecall publication lock** was reported by the owner on October 19, 2026. It
+restricts action to merges into main and prohibits publication and sharing
+changes. Its task ID and cloud-run receipt have not been supplied. Production
+publication is not enabled or verified. Repository preparation is tracked in
+PR #60. Saving a task does not prove it can deploy the Site.
 
 ## Configure the trigger
 
@@ -22,8 +26,13 @@ Official references:
 
 ## First run: verify capabilities without publishing
 
-Use this request in a new web chat with the intended task connections, then use
-Run now in the saved task to repeat it in a fresh cloud run:
+Use this request in a new web chat with the intended task connections. That is
+an interactive preflight, not cloud execution evidence. The owner attempted
+Run now on the event task and received “Run now is available only for ordinary
+cloud-scheduled tasks.” No cloud run occurred. Verify the event task through a
+real eligible merge. Alternatively, separately provision an ordinary cloud task
+with the same connections and verification-only prompt for a capability test;
+this does not prove event delivery. Do not create dummy merges solely to test it:
 
 > Verify readiness to deploy Rolecall from successful main CI builds in
 > Coreyboy1820/job-application-tracker to existing Sites project
@@ -56,8 +65,9 @@ be available to the cloud task; read it for supported source and publishing call
 1. Treat the merge event as a wake-up signal. Read current `main` and select its
    successful **push** run of `.github/workflows/build.yml`, not PR validation or
    an older passing commit. If CI is still running, poll for at most 15 minutes;
-   stop and report pending/failed/cancelled CI without publishing. Recovery uses
-   Run now after successful CI; there is no automatic retry trigger for CI reruns.
+   stop and report pending/failed/cancelled CI without publishing. There is no verified manual-run route for this event task and no automatic
+   retry trigger for CI reruns. Surface a pending run for operator recovery; do
+   not promise a retry that the configured trigger cannot deliver.
 2. Follow [publication coordination](sites-publication-state.md) to acquire the
    durable per-Site lock and update the persistent release ledger. Keep it
    through terminal
@@ -95,8 +105,10 @@ be available to the cloud task; read it for supported source and publishing call
 
 ## Enablement evidence
 
-Keep the task disabled until its cloud capabilities, lock, and receipt storage
-are demonstrated. Artifact download is a post-merge gate: until PR #60 reaches
+Keep **production publication** disabled until its cloud capabilities, lock, and
+receipt storage are demonstrated. The existing enabled verification-only task
+may run without publishing. Do not broaden its prompt into a publisher before
+these gates pass. Artifact download is a post-merge gate: until PR #60 reaches
 main, successful main runs legitimately have no candidate artifacts. Do not
 weaken main-push gating or repeatedly test an artifact that cannot yet exist.
 Before calling automatic deployment complete, record the task
