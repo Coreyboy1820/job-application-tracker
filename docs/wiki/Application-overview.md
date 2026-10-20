@@ -20,6 +20,8 @@ Save multiple rounds on an application. Interview date/time uses the device's lo
 
 ![Mobile interview agenda with wrapped filters](assets/interview-filters-mobile.png)
 
+In the interview editor, **Add interview**, **Update interview**, and **Delete** save directly to Rolecall. The editor stays open for more rounds; **Done** leaves the editor. Fields remain drafts until Add/Update is submitted. Saving disables editing and closing temporarily; errors preserve drafts or the existing interview for retry. If another device changed the schedule, Rolecall refreshes the list and asks you to review and retry rather than overwriting those changes.
+
 **Add to Google Calendar** first explains sharing, then opens a prefilled Google event draft after you continue. The draft URL also includes application and interview IDs as a `Rolecall reference: application-id/interview-id` in event details, alongside the scheduling fields described in the sharing notice. Review and save the draft in Google. Rolecall marks that the draft was opened, not that an event exists. Reopening warns about duplicates; independently created events and stale device state cannot be detected. Changes/deletes in Rolecall do not synchronize to Google. See [external data boundaries](Data-model-and-flows.md#external-data-boundaries).
 
 ## Skills and company practice

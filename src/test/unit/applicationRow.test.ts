@@ -17,6 +17,12 @@ const application: Application = {
 afterEach(() => vi.useRealTimers())
 
 describe('application persistence mapping', () => {
+  it('maps old Interested records to Applied while preserving their data', () => {
+    const row = { ...toRow(application, 'owner-1'), status: 'Interested' as const }
+    expect(fromRow(row)).toEqual(fromRow({ ...row, status: 'Applied' }))
+    expect(toRow(fromRow(row), 'owner-1').status).toBe('Applied')
+  })
+
   it('round trips analysis, skills, and interviews through database fields', () => {
     const complete: Application = {
       ...application,

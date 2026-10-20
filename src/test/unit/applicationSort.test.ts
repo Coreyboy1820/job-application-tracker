@@ -14,6 +14,19 @@ const rows = [
   application('soon', '2026-10-02', [interview('4', '2026-10-05', '13:00')]),
 ]
 describe('application next-interview sorting', () => {
+  it('sorts by status priority, retaining input order for ties without mutating records', () => {
+    const input: Application[] = [
+      { ...rows[0], status: 'Offer' },
+      { ...rows[1], status: 'Applied' },
+      { ...rows[2], status: 'Rejected' },
+      { ...rows[3], status: 'Interviewing' },
+      { ...rows[0], id: 'applied-tie', status: 'Applied' },
+    ]
+    const original = [...input]
+    expect(sortApplications(input, 'status', now).map((row) => row.id)).toEqual(['past', 'later', 'applied-tie', 'soon', 'none'])
+    expect(input).toEqual(original)
+  })
+
   it('uses the soonest valid future interview and puts applications without one last', () => {
     expect(sortApplications(rows, 'next-interview', now).map((row) => row.id)).toEqual(['soon', 'later', 'none', 'past'])
     expect(rows.map((row) => row.id)).toEqual(['none', 'later', 'past', 'soon'])

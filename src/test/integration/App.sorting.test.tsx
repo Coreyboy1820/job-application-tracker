@@ -19,7 +19,27 @@ beforeEach(() => {
   mocks.from.mockReturnValue({ select: () => ({ order: vi.fn().mockResolvedValue({ data: rows, error: null }) }) })
 })
 const visibleCompanies = () => screen.getAllByRole('button', { name: /Engineer/ }).filter((button) => button.classList.contains('application-open-button')).map((button) => button.querySelector('strong')?.textContent)
-describe('next-interview sorting controls', () => {
+describe('application sorting controls', () => {
+  it('defaults to status priority and removes Interested from filters and selectors', async () => {
+    const statusRows = [
+      { ...rows[0], status: 'Offer' },
+      { ...rows[1], status: 'Rejected' },
+      { ...rows[2], status: 'Interviewing' },
+      { ...rows[0], id: 'legacy', company: 'Legacy interested', status: 'Interested' },
+    ]
+    mocks.from.mockReturnValue({ select: () => ({ order: vi.fn().mockResolvedValue({ data: statusRows, error: null }) }) })
+    render(<App />)
+    await screen.findByRole('button', { name: /Edit Engineer at Soon interview/ })
+    expect((screen.getByRole('combobox', { name: 'Sort applications' }) as HTMLSelectElement).value).toBe('status')
+    expect(visibleCompanies()).toEqual(['Later interview', 'Legacy interested', 'Soon interview', 'No interview'])
+    expect(screen.queryByRole('tab', { name: /Interested/ })).toBeNull()
+    expect(screen.queryByRole('option', { name: 'Interested' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /Applied/ }))
+    expect(visibleCompanies()).toEqual(['Legacy interested'])
+    fireEvent.click(screen.getByRole('button', { name: /Add application/i }))
+    expect(screen.queryByRole('option', { name: 'Interested' })).toBeNull()
+  })
+
   it('sorts Applications by next interview, retains date modes, and combines with search', async () => {
     render(<App />)
     await screen.findByRole('button', { name: /Edit Engineer at Soon interview/ })

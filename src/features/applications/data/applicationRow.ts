@@ -7,7 +7,7 @@ export type ApplicationRow = {
   role: string
   location: string
   date_applied: string
-  status: Status
+  status: Status | 'Interested'
   url: string
   notes: string
   next_step: string
@@ -27,7 +27,7 @@ export function fromRow(row: ApplicationRow): Application {
     role: row.role,
     location: row.location,
     dateApplied: row.date_applied,
-    status: row.status,
+    status: row.status === 'Interested' ? 'Applied' : row.status,
     url: row.url,
     notes: row.notes,
     nextStep: row.next_step,

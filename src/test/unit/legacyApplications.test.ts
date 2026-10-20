@@ -11,6 +11,16 @@ afterEach(() => {
 })
 
 describe('legacy application compatibility', () => {
+  it('imports Interested applications as Applied without discarding their data', async () => {
+    const saved = {
+      id: '12345678-1234-1234-1234-123456789abc', company: 'Example', role: 'Engineer',
+      status: 'Interested', location: 'Remote', dateApplied: '2026-10-01',
+      url: 'https://example.com/jobs/1', notes: 'Saved notes', nextStep: 'Follow up', interviews: [],
+    }
+    loadApplications.mockResolvedValue([saved])
+    expect(await readLegacyApplications()).toEqual([{ ...saved, status: 'Applied' }])
+  })
+
   it('rejects missing names and normalizes invalid identifiers, statuses, and optional fields', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-06T00:30:00Z'))

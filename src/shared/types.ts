@@ -1,4 +1,4 @@
-export type Status = 'Interested' | 'Applied' | 'Interviewing' | 'Offer' | 'Rejected'
+export type Status = 'Applied' | 'Interviewing' | 'Offer' | 'Rejected'
 
 export type ComfortRating =
   | 'low'
