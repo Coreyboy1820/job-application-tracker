@@ -1,6 +1,6 @@
 # Publication evidence and remaining gates
 
-Rechecked October 19, 2026, America/Los_Angeles. Runtime receipts use UTC.
+Rechecked October 20, 2026, America/Los_Angeles. Runtime receipts use UTC.
 This records evidence. The publisher readback below was read-only; this branch does not enable or edit a cloud publisher task.
 
 ## Verified first release
@@ -73,3 +73,35 @@ replace or enable the PR-merge publisher.
 On October 20, 2026, the existing task **Publish Rolecall main merges** was read back enabled with ID `6ad6fcf51ab8819191c31fccf5133a90`, mode `condition_watch`, and updated timestamp `2026-10-20T05:55:35Z`. Its saved prompt contains the complete current-main CI gate, publication-state CAS/lock protocol, trusted candidate verification, public-audience preservation, supported Sites source synchronization, pending provenance, save/deploy reconciliation, terminal recording, and unlock requirements. The last-run timestamp exposed by the task was `2026-10-20T05:44:57Z`.
 
 The readback surface does not expose webhook trigger filters or connector bindings. Therefore it cannot by itself prove exact repository/base/merge delivery or that the intended GitHub and Sites connections are attached. Do not create or replace the task; use the next real eligible merge to verify those properties and ongoing unattended publication.
+
+## October 20 development-session recheck
+
+Read-only native Sites calls confirmed the same project, public audience, owner
+role, live URL, and latest saved version **2**. The recorded deployment still
+returns `succeeded`, with no failure message. An authenticated GitHub read of
+`publication-state.json` returned blob
+`2565fa7064499275cbb85e11e5ce5b38c4c69160`, revision **10**, owner **null**,
+and the same single successful release above. No lock or deployment was changed.
+
+The Site-linked automation list returned only **Resume Rolecall open issues**
+(`Automation_a163016077a08191adf6d8652d2b9808`), now disabled. This list is
+limited to Site-linked schedules; it does not disprove the separate event
+publisher readback above or establish whether the one-time development task ran.
+This session exposes `create_schedule` for time-based VEVENT tasks, with no task
+inspection/editing or event-trigger-management tool. No duplicate task was created.
+
+For the next real eligible merge, retain a reviewable receipt with these fields:
+
+| Evidence | Required observation |
+| --- | --- |
+| Event and task | Merged PR/base, triggering event, publisher task ID and cloud-run URL or explicitly unavailable URL. |
+| Eligibility | Authenticated current-main SHA, successful push CI run/attempt, artifact ID and verified candidate digest. |
+| Coordination | Lock acquisition/readback, pending release ID and durable provenance; duplicate/stale handling when applicable. |
+| Publication | Exact Sites source SHA, saved version and deployment IDs, native terminal outcome and unchanged public audience. |
+| Completion | Ledger terminal evidence and explicit unlock/readback, or retained ownership plus recovery details if ambiguous. |
+
+Capture observations separately from configured instructions. A passing PR check
+alone is not merge-trigger delivery. Do not manufacture a merge or production
+failure to fill this record. The [official task documentation](https://learn.chatgpt.com/docs/automations)
+places GitHub event-trigger management in ChatGPT web/mobile; use that surface
+to inspect the existing task's hidden filters and connections.

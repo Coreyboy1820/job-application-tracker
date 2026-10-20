@@ -13,6 +13,9 @@ Task ID: `Automation_a163016077a08191adf6d8652d2b9808`.
 It is not the production publisher. Its instructions prohibit merging, closing
 issues, publishing/deploying, changing sharing, or running production migrations.
 Saving it does not prove its future cloud execution or development capabilities.
+An October 20 native Site read now returns this one-time task as disabled;
+that state alone does not establish whether it ran. The separate event publisher
+is not enumerated by the Site-linked schedule list.
 
 Use pushed GitHub branches and PRs for continuation; `/tmp` checkouts and personal
 skills from this desktop are not durable cloud inputs. If cloud source/tools
