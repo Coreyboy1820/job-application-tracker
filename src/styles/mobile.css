@@ -1,0 +1,70 @@
+/* Responsive overrides shared by the application, account, and practice screens.
+   Keep intrinsic content widths inside their own scroll areas. */
+body { min-width: 0 }
+.main-content, .field, .search-box, .company-info { min-width: 0 }
+.modal-header > div, .application-detail-header > div { min-width: 0 }
+.icon-button, .company-logo { flex-shrink: 0 }
+.modal-header, .application-detail-header { gap: 12px }
+.modal, .application-detail, .auth-card, .storage-message,
+.skills-application, .company-skill-questions, .upcoming-interview {
+  overflow-wrap: anywhere;
+}
+.modal, .application-detail { max-width: 100% }
+/* Dynamic viewport height follows mobile browser chrome and viewport resizing. */
+.modal { max-height: calc(100dvh - 40px) }
+.application-detail { max-height: min(780px, calc(100dvh - 40px)) }
+.application-detail-header { flex-shrink: 0 }
+.application-detail-content { min-height: 0 }
+.saved-job-description pre { overflow-wrap: anywhere }
+.analyzed-skill-heading { flex-wrap: wrap }
+.application-detail-meta, .skills-summary, .modal-actions { flex-wrap: wrap; gap: 10px }
+
+@media (max-width: 680px) {
+  .sidebar {
+    height: auto;
+    min-height: 55px;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 10px 15px;
+  }
+  .sidebar .brand { flex-basis: 100%; margin-bottom: 4px }
+  .sidebar .nav-item { min-height: 44px; flex: 1 1 auto; justify-content: center }
+  .sidebar .nav-count { margin-left: 0 }
+  .topbar { height: auto; min-height: 48px; gap: 8px; flex-wrap: wrap; padding: 8px 0 }
+  .page-heading > div { min-width: 0; overflow-wrap: anywhere }
+  .page-heading > .primary-button { flex-shrink: 0 }
+  .toolbar-actions { flex-wrap: wrap; gap: 8px }
+  .search-box { flex: 1; min-height: 44px }
+  .search-box input { width: 100%; min-width: 0 }
+  .sort-button { min-height: 44px }
+  .sort-control select, .company-skill-knowledge-select { min-height: 44px; font-size: 16px }
+  .stat-value { position: static; margin-top: 6px }
+  .tab { min-height: 44px }
+  .tabs { height: auto; min-height: 44px }
+  .field input, .field select, .field textarea,
+  .search-box input, .skill-comfort-rating select,
+  .practice-prompt-batch textarea { font-size: 16px }
+  .field input, .field select, .secondary-button, .primary-button, .text-button { min-height: 44px }
+  .skills-application-actions { padding-left: 0; flex-wrap: wrap }
+  .skills-page-heading { flex-wrap: wrap }
+  .skills-filter button { min-height: 44px }
+  .upcoming-interview { flex-wrap: wrap }
+  .upcoming-interview-date { flex-basis: 100% }
+  .upcoming-interview-details { overflow-wrap: anywhere }
+  .practice-handoff-toolbar { position: static; padding: 12px }
+  .practice-prompt-batch-footer { flex-wrap: wrap }
+  .practice-prompt-footer a { white-space: normal }
+  .modal-backdrop, .application-detail-backdrop {
+    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  }
+  .modal, .application-detail { max-height: calc(100dvh - max(10px, env(safe-area-inset-top)) - max(10px, env(safe-area-inset-bottom))) }
+}
+/* Contain absolutely positioned screen-reader labels in the scrolling table. */
+.table-wrap { position: relative }
+.interview-editor-content { padding: 18px 24px 0; min-width: 0 }
+.interview-editor-content form { padding: 0 }
+.interview-editor-footer { margin: 18px 24px; padding-top: 16px }
+@media (max-width: 680px) {
+  .interview-editor-content { padding: 16px 18px 0 }
+  .interview-editor-footer { margin: 18px }
+}
