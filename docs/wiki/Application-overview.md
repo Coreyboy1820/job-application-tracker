@@ -4,17 +4,19 @@
 
 ## Applications
 
-Create a record with company, role, location, application date, posting URL, notes, and next step. Statuses are **Interested**, **Applied**, **Interviewing**, **Offer**, and **Rejected**. Search company/role/location, filter by status, and sort newest, oldest, or by next interview. Records with no future interview come last in next-interview ordering. Open the company/role to view details; row actions edit, delete, or manage interviews.
+Create a record with company, role, location, application date, posting URL, notes, and next step. Statuses are **Rejected**, **Applied**, **Interviewing**, and **Offer**. Default status ordering follows that sequence and preserves saved order within a status. Older Interested records normalize to Applied. Search company/role/location, filter by status, and sort by status, newest, oldest, or next interview. Records with no future interview come last in next-interview ordering. Open the company/role to view details; row actions edit, delete, or manage interviews.
 
 An **application** is one role at one company. Two applications at the same company remain separate records. A **skill** is extracted from that application's saved posting. Its knowledge level belongs to that application skill, rather than globally to the skill name.
 
-![Desktop application list with fictional records](assets/applications-desktop.png)
+The following application-list captures predate the status-ordering update and may show the retired Interested status; the supported statuses and order are described above. Refresh these captures before final wiki publication.
+
+![Earlier desktop application list with fictional records](assets/applications-desktop.png)
 
 ![Mobile application list with fictional records](assets/applications-mobile.png)
 
 ## Interviews and Google Calendar
 
-Save multiple rounds on an application. Interview date/time uses the device's local time zone; choose the correct zone when entering it. Duration defaults to 60 minutes. Choose a preset type or **Other** for custom text. The Interviews page lists upcoming rounds chronologically, allows multi-type filtering, and opens the related application.
+Save multiple rounds on an application. Adding, updating, or deleting a round saves immediately; closing the editor needs no second save. A failed operation keeps the saved schedule unchanged and displays an error so you can retry. Interview date/time uses the device's local time zone; choose the correct zone when entering it. Duration defaults to 60 minutes. Choose a preset type or **Other** for custom text. The Interviews page lists upcoming rounds chronologically, allows multi-type filtering, and opens the related application.
 
 ![Desktop interview agenda with type filters](assets/interview-filters-desktop.png)
 
@@ -28,9 +30,11 @@ In the interview editor, **Add interview**, **Update interview**, and **Delete**
 
 Open application details with a public HTTPS posting link to run analysis. The server extracts skills and brief evidence quotes, generates three general practice questions per skill, and saves the result. **View skills** opens only that application's skills; **Show all skills** returns to the overall library. Missing/deleted applications show a recovery message.
 
-Choose **Low**, **Medium**, **High**, or **No study needed**. Low is the default; lowest knowledge comes first, and no-study skills remain crossed out at the end. Application sorting and skill ordering are independent. Company practice combines skills/questions across roles at the selected company; changing a company skill's level updates its associated roles. A skill is excluded from active study only when all its associated roles are marked no-study.
+Choose **Low**, **Medium**, **High**, or **No study needed** using the knowledge control at the bottom right of each skill card. Low is the default; lowest knowledge comes first, and no-study skills remain crossed out at the end. Application sorting and skill ordering are independent. Company practice combines skills/questions across roles at the selected company; changing a company skill's level updates its associated roles. A skill is excluded from active study only when all its associated roles are marked no-study.
 
-![Application-scoped Skills with priorities and sorting](assets/skills-priorities-desktop.png)
+![Desktop Skills with knowledge controls below each card](assets/knowledge-flags-desktop.png)
+
+![Mobile Skills with knowledge controls below each card](assets/knowledge-flags-mobile.png)
 
 ![Company practice on desktop with fictional records](assets/company-practice-desktop.png)
 
@@ -38,9 +42,11 @@ Choose **Low**, **Medium**, **High**, or **No study needed**. Low is the default
 
 ## Selected-question ChatGPT practice
 
-Open questions in Skills or company practice, select questions across skills, and choose **Prepare ChatGPT prompt** in the bar that remains visible while scrolling the practice section. Application selections stay scoped to that application; company selections stay scoped to that company.
+Open questions in Skills or company practice, select questions across skills, and choose **Prepare ChatGPT prompt** in the bar that remains visible while scrolling the practice section. The overall Skills library combines selections across applications and companies in one preparation bar. Application-filtered practice stays scoped to that application; company practice stays scoped to that company. Filters and collapsed cards can hide selected questions without removing them: the bar counts hidden selections and includes them in the preview.
 
-![Selected questions and sticky controls on desktop](assets/chatgpt-sticky-application-1280.png)
+![Selections across applications in one desktop preparation bar](assets/shared-skills-selection-desktop.png)
+
+![Selections across applications on mobile](assets/shared-skills-selection-mobile.png)
 
 ![Company practice sticky controls on mobile](assets/chatgpt-sticky-company-390.png)
 
@@ -48,9 +54,9 @@ Review/edit the preview. Company and role context are optional and unchecked ini
 
 Use **Copy prompt**, then **Open ChatGPT**, paste, review, and send there. Copying and opening are separate; the link contains no prompt. If clipboard access fails, the preview supports manual copying. Cancel preserves selection, while **Clear selection** removes it. Selections and previews stay in memory and are not persisted or logged.
 
-![Editable desktop prompt preview and separate copy/open actions](assets/chatgpt-prompt-desktop.png)
+![Combined editable desktop prompt preview](assets/shared-skills-prompt-desktop.png)
 
-![Mobile prompt preview](assets/chatgpt-prompt-mobile.png)
+![Combined mobile prompt preview](assets/shared-skills-prompt-mobile.png)
 
 ## Legacy records
 

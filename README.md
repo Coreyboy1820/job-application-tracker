@@ -32,4 +32,4 @@ The target [GitHub wiki](https://github.com/Coreyboy1820/job-application-tracker
 
 ## Website delivery
 
-Rolecall is hosted publicly on [ChatGPT Sites](https://rolecall-private.tealcrow6.chatgpt.site). CI prepares tested main-branch build artifacts; automatic publication is not configured yet. See [Sites delivery](docs/sites-delivery.md) for the current limitation, release procedure, and remaining work in issue #59.
+Rolecall is hosted publicly on [ChatGPT Sites](https://rolecall-private.tealcrow6.chatgpt.site). CI prepares tested main-branch build artifacts; publication uses a separately configured authenticated workflow and lock. See [Sites delivery](docs/sites-delivery.md), [cloud task setup](docs/sites-auto-deploy-task.md), and [publication state](docs/sites-publication-state.md) for current operational evidence and release requirements. Public hosting does not grant access to account-owned application records.

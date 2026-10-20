@@ -70,13 +70,13 @@ The analyzer requires a valid application UUID and caller authorization. Public 
 
 ## Legacy import
 
-Read legacy local-storage/IndexedDB records, normalize compatible fields, present import after sign-in, and write account-owned rows. Avoid duplicate imported ids, preserve source records, and set the per-account import marker only after success. Invalid legacy data is not silently erased. Legacy browser records and the marker remain local; newly created application records live in Supabase. The Auth SDK can also persist its own session in browser storage.
+Read legacy local-storage/IndexedDB records, normalize compatible fields (including Interested → Applied), present import after sign-in, and write account-owned rows. Avoid duplicate imported ids, preserve source records, and set the per-account import marker only after success. Invalid legacy data is not silently erased. Legacy browser records and the marker remain local; newly created application records live in Supabase. The Auth SDK can also persist its own session in browser storage.
 
 ## Interview practice
 
 ```mermaid
 flowchart LR
-  Questions[Saved skill questions] --> Selection[In-memory scoped selection]
+  Questions[Saved skill questions] --> Selection[In-memory selection across applications or current scope]
   Selection --> Preview[Editable prompt and optional context]
   Preview --> Clipboard[Explicit local Copy prompt]
   Preview --> Link[Separate plain ChatGPT link]
@@ -84,7 +84,7 @@ flowchart LR
   Paste --> Send[User sends to OpenAI]
 ```
 
-The prompt includes selected question text and skill labels; company/roles are opt-in. It excludes application notes, candidate biography, interview notes, meeting links, account/session details, database ids, and posting URLs unless the user manually adds them to the editable text. Exact duplicate questions combine labels. Batches keep complete questions. Preview/selection are not saved or logged.
+Selections hidden by filters or collapsed cards remain included and are counted in the preparation bar. The prompt includes selected question text and skill labels; company/roles are opt-in. It excludes application notes, candidate biography, interview notes, meeting links, account/session details, database ids, and posting URLs unless the user manually adds them to the editable text. Exact duplicate questions combine labels. Batches keep complete questions. Preview/selection are not saved or logged.
 
 ## External data boundaries
 

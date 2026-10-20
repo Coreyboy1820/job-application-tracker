@@ -17,6 +17,6 @@ Start with [Application overview](Application-overview.md) for the user journey 
 | [Troubleshooting](Troubleshooting.md) | Configuration, sign-in, analysis, clipboard, and calendar errors |
 | [Maintenance](Maintenance.md) | Editing the wiki, refreshing screenshots, and keeping docs accurate |
 
-Screenshots throughout this wiki use fictional Acme/Globex records and production UI components. They show desktop and narrow mobile viewports, not real account data. Documentation describes merged PR #49, including its sticky practice controls; issue #51 is a separate pending visual update.
+Screenshots throughout this wiki use fictional application records and production UI components. They show desktop and narrow mobile viewports, not real account data. Documentation was checked against main commit `acf65ab4c7aa6b4bf2d38ad19771cdc8c97348e0`, including knowledge controls, cross-application practice selection, immediate interview saves, status ordering, and Sites candidate preparation. Public Site access does not grant access to account-owned records.
 
 [Source repository](https://github.com/Coreyboy1820/job-application-tracker) · [Issue tracker](https://github.com/Coreyboy1820/job-application-tracker/issues)
