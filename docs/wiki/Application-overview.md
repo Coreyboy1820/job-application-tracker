@@ -12,6 +12,8 @@ Remove an individual criterion with its **Remove … sort** control, or use **Cl
 
 An **application** is one role at one company. Two applications at the same company remain separate records. A **skill** is extracted from that application's saved posting. Its knowledge level belongs to that application skill, rather than globally to the skill name.
 
+The workspace expands with the browser width beside the desktop sidebar. On phones, Rolecall stays above the navigation buttons and the content adapts to the viewport. Wide application tables scroll within their panel, while forms and dialogs keep readable widths.
+
 ![Desktop applications with sortable column headers and next interview dates](assets/applications-sortable-desktop.png)
 
 ![Mobile application table scrolled to the sortable next interview column](assets/applications-sortable-mobile.png)
