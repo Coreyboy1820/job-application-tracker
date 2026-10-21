@@ -21,20 +21,37 @@ body { min-width: 0 }
 
 @media (max-width: 680px) {
   .sidebar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     height: auto;
     min-height: 55px;
-    flex-wrap: wrap;
-    gap: 4px;
+    gap: 8px 4px;
     padding: 10px 15px;
   }
-  .sidebar .brand { flex-basis: 100%; margin-bottom: 4px }
-  .sidebar .nav-item { min-height: 44px; flex: 1 1 auto; justify-content: center }
-  .sidebar .nav-count { margin-left: 0 }
+  .sidebar .brand { grid-column: 1 / -1; justify-self: start; margin: 0 }
+  .sidebar .nav-item {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    justify-content: center;
+    align-content: center;
+    gap: 4px 5px;
+    min-width: 0;
+    min-height: 60px;
+    padding: 8px 4px;
+    font-size: 11px;
+    line-height: 1.35;
+    text-align: center;
+  }
+  .sidebar .nav-icon { grid-column: 1; grid-row: 1 }
+  .sidebar .nav-count { grid-column: 2; grid-row: 1; margin-left: 0 }
+  .sidebar .nav-label { grid-column: 1 / -1; grid-row: 2; overflow-wrap: anywhere }
   .topbar { height: auto; min-height: 48px; gap: 8px; flex-wrap: wrap; padding: 8px 0 }
   .page-heading > div { min-width: 0; overflow-wrap: anywhere }
   .page-heading > .primary-button { flex-shrink: 0 }
   .toolbar-actions { flex-wrap: wrap; gap: 8px }
-  .search-box { flex: 1; min-height: 44px }
+  .search-box { flex: 1 1 140px; min-height: 44px }
+  .toolbar-actions .sort-control { flex: 1 1 160px; min-width: 0 }
+  .toolbar-actions .sort-control select { width: 100%; min-width: 0 }
   .search-box input { width: 100%; min-width: 0 }
   .sort-button { min-height: 44px }
   .sort-control select, .company-skill-knowledge-select { min-height: 44px; font-size: 16px }

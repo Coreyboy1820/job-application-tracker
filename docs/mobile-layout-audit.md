@@ -46,3 +46,13 @@ Node.js 22.23.3: `npm test` passed all 35 files / 253 tests; `npm run build` pas
 The reported pinch-zoom behavior has **not** been reproduced on physical iOS Safari or Android Chrome. Direct hosted versus embedded ChatGPT Sites behavior, minimum browser zoom scale, actual software keyboard, safe-area hardware, OS text enlargement, touch interaction, and mobile browser chrome changes remain unverified. A reduced viewport is not equivalent to those checks. Loading/error/empty states and keyboard navigation were reviewed in source/existing tests, not exhaustively exercised in the visual matrix. Long company/role names and actual browser text enlargement still need targeted device checks. Keep #61 open until the device/hosting checks establish the reported zoom cause and remaining acceptance criteria are verified.
 
 No migration or Supabase deployment is needed. The CSS and component changes need the normal frontend publication step to affect the hosted site.
+
+## Mobile header follow-up
+
+Reviewed the header-only follow-up against the current local HEAD using the `ui-review` skill. Local Chromium checks used fictional application data and no real Supabase connection.
+
+At 320, 360, 390, and 430px, Rolecall occupied the top-left first row. Applications, Interviews, and Skills occupied equal-width columns on the second row, with all icons, counts, and labels visible. All three buttons measured 60px high; their content did not overflow. The document did not exceed the viewport width. Mouse clicks on each navigation button changed the route and updated both its active class and `aria-current`. The 1280px viewport retained the existing vertical desktop sidebar.
+
+Evidence: `screenshots/issue-61/header-after-320.png`, `header-after-390.png`, and `header-after-1280.png`. These show the resulting layout, not a reconstructed before state. No actionable findings. Physical devices, screen readers, and other browser engines remain untested.
+
+The final toolbar refinement was checked with the longest sort option selected. At 320px, search and sort naturally wrapped into separate 243px-wide rows. At 390px, they shared a row with approximately 143px and 163px widths; neither control overflowed its container. Refreshed all three header screenshots after this change. Final validation on Node.js 22.23.3 passed all 277 tests across 35 files and the production build, including TypeScript checks.
