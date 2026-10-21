@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowUpRight, BriefcaseBusiness, CalendarDays, Check,
+  ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, BriefcaseBusiness, CalendarDays, Check,
   CirclePlus, Clock3, LogOut, MoreHorizontal, Pencil, Search, Sparkles, X,
 } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
@@ -11,8 +11,8 @@ import { applicationColumns, fromRow, toRow } from '../features/applications/dat
 import type { ApplicationRow } from '../features/applications/data/applicationRow'
 import { readLegacyApplications } from '../features/applications/data/legacyApplications'
 import { statuses } from '../features/applications/statuses'
-import { sortApplications } from '../features/applications/applicationSort'
-import type { ApplicationSort } from '../features/applications/applicationSort'
+import { getApplicationSortState, nextInterviewTimestamp, sortApplications, toggleApplicationSortStack } from '../features/applications/applicationSort'
+import type { ApplicationSort, ApplicationSortColumn } from '../features/applications/applicationSort'
 import ApplicationModal from '../features/applications/components/ApplicationModal'
 import ApplicationDetailView from '../features/applications/components/ApplicationDetailView'
 import StatusSelect from '../features/applications/components/StatusSelect'
@@ -31,6 +31,57 @@ import { useAppRoute } from './useAppRoute'
 import '../styles/cloud.css'
 import '../features/applications/applicationSort.css'
 
+const applicationSortOptions: { value: ApplicationSort; label: string }[] = [
+  { value: 'status', label: 'Status' },
+  { value: 'status-desc', label: 'Status (reverse)' },
+  { value: 'company', label: 'Company A–Z' },
+  { value: 'company-desc', label: 'Company Z–A' },
+  { value: 'role', label: 'Role A–Z' },
+  { value: 'role-desc', label: 'Role Z–A' },
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'next-interview', label: 'Next interview' },
+  { value: 'next-interview-desc', label: 'Next interview (latest first)' },
+  { value: 'next-step', label: 'Next step A–Z' },
+  { value: 'next-step-desc', label: 'Next step Z–A' },
+]
+
+const applicationSortColumns: { column: ApplicationSortColumn; label: string }[] = [
+  { column: 'company', label: 'Company' },
+  { column: 'role', label: 'Role' },
+  { column: 'date-applied', label: 'Date applied' },
+  { column: 'status', label: 'Status' },
+  { column: 'next-interview', label: 'Next interview' },
+  { column: 'next-step', label: 'Next step' },
+]
+
+const interviewDateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+})
+
+function ApplicationSortHeader({ column, label, sorts, onSort }: {
+  column: ApplicationSortColumn
+  label: string
+  sorts: readonly ApplicationSort[]
+  onSort: (column: ApplicationSortColumn) => void
+}) {
+  const priority = sorts.findIndex((sort) => getApplicationSortState(sort)?.column === column)
+  const direction = priority >= 0 ? getApplicationSortState(sorts[priority])?.direction : undefined
+  const Icon = direction === 'ascending' ? ArrowUp : direction === 'descending' ? ArrowDown : ArrowUpDown
+  const description = direction
+    ? `Sort priority ${priority + 1} of ${sorts.length}, ${direction}. Activate to reverse direction.`
+    : 'Activate to add this column after the current sort priorities.'
+  return <th scope="col" aria-sort={priority === 0 ? direction : undefined} data-sort-active={direction ? 'true' : undefined}>
+    <button type="button" className="column-sort-button" onClick={() => onSort(column)}
+      aria-describedby={`sort-description-${column}`}
+      title={`Sort ${label.toLowerCase()} ${direction === 'ascending' ? 'descending' : 'ascending'}`}>
+      {label}<Icon size={13} aria-hidden="true" />
+      {priority >= 0 && <span className="column-sort-priority" aria-hidden="true">{priority + 1}</span>}
+    </button>
+    <span hidden id={`sort-description-${column}`}>{description}</span>
+  </th>
+}
+
 function App() {
   const client = supabase
   const activeUserId = useRef<string | null>(null)
@@ -46,7 +97,8 @@ function App() {
   const [dataLoading, setDataLoading] = useState(false)
   const [activeStatus, setActiveStatus] = useState<Status | 'All'>('All')
   const [search, setSearch] = useState('')
-  const [applicationSort, setApplicationSort] = useState<ApplicationSort>('status')
+  const [applicationSorts, setApplicationSorts] = useState<ApplicationSort[]>([])
+  const applicationSort = applicationSorts[0] ?? 'status'
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [interviewEditorApplicationId, setInterviewEditorApplicationId] = useState<string | null>(null)
   const [editingApplication, setEditingApplication] = useState<Application | null>(null)
@@ -179,8 +231,8 @@ function App() {
       .filter((application) => activeStatus === 'All' || application.status === activeStatus)
       .filter((application) =>
         !query || `${application.company} ${application.role} ${application.location}`.toLowerCase().includes(query),
-      ), applicationSort, agendaNow)
-  }, [applications, activeStatus, search, applicationSort, agendaNow])
+      ), applicationSorts.length ? applicationSorts : ['status'], agendaNow)
+  }, [applications, activeStatus, search, applicationSorts, agendaNow])
 
   const activeCount = applications.filter((item) => ['Applied', 'Interviewing'].includes(item.status)).length
   const interviewCount = applications.filter((item) => item.status === 'Interviewing').length
@@ -648,21 +700,46 @@ function App() {
             <div className="tabs" role="tablist" aria-label="Filter by status">
               {(['All', ...statuses] as const).map((status) => <button key={status} role="tab" aria-selected={activeStatus === status} className={`tab ${activeStatus === status ? 'tab-active' : ''}`} onClick={() => setActiveStatus(status)}>{status}<span>{status === 'All' ? applications.length : applications.filter((item) => item.status === status).length}</span></button>)}
             </div>
-            <div className="toolbar-actions"><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search roles..." /></label><label className="sort-control"><span className="sr-only">Sort applications</span><select value={applicationSort} onChange={(event) => setApplicationSort(event.target.value as ApplicationSort)}><option value="status">Status</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="next-interview">Next interview</option></select></label></div>
+            <div className="toolbar-actions"><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search roles..." /></label><label className="sort-control"><span className="sr-only">Sort applications</span><select value={applicationSorts.length > 1 ? 'stacked' : applicationSort} aria-describedby="application-sort-help" onChange={(event) => setApplicationSorts([event.target.value as ApplicationSort])}>{applicationSorts.length > 1 && <option value="stacked" disabled>Multiple columns</option>}{applicationSortOptions.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}</select></label></div>
+          </div>
+          <div className="application-sort-summary">
+            <span id="application-sort-help">Click headers to add priorities. The dropdown starts a new sort.</span>
+            {applicationSorts.length > 0
+              ? <ol aria-label="Sort priority">{applicationSorts.map((sort, index) => {
+                const state = getApplicationSortState(sort)!
+                const label = applicationSortColumns.find(({ column }) => column === state.column)!.label
+                return <li key={state.column}><span>{index + 1}. {label} ({state.direction})</span><button type="button" aria-label={`Remove ${label} sort`} onClick={() => setApplicationSorts((current) => current.filter((item) => item !== sort))}><X size={12} aria-hidden="true" /></button></li>
+              })}</ol>
+              : <span>Default: Status order</span>}
+            <button type="button" className="clear-application-sorts" disabled={!applicationSorts.length} onClick={() => setApplicationSorts([])}>Clear sorts</button>
+            <span role="status" className="sr-only">{applicationSorts.length
+              ? `Sort priority: ${applicationSorts.map((sort, index) => {
+                const state = getApplicationSortState(sort)!
+                return `${index + 1}. ${applicationSortColumns.find(({ column }) => column === state.column)!.label}, ${state.direction}`
+              }).join('; ')}`
+              : 'Default status order. No explicit sort priorities.'}</span>
           </div>
           {dataLoading ? <div className="empty-state"><p>Loading your applications…</p></div> : visibleApplications.length > 0 ? (
-            <div className="table-wrap"><table><thead><tr><th>COMPANY & ROLE</th><th>DATE APPLIED</th><th>STATUS</th><th>NEXT STEP</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
-              {visibleApplications.map((application) => <tr key={application.id}>
-                <td><div className="company-cell"><div className="company-logo" aria-hidden="true">{application.company.slice(0, 1).toUpperCase()}</div><button type="button" className="company-info application-open-button" onClick={() => setSelectedApplicationId(application.id)}><strong>{application.company}</strong><span>{application.role}{application.location ? ` · ${application.location}` : ''}</span>{application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && <span className="analysis-status">{application.skills?.length ?? 0} skills analyzed</span>}</button></div></td>
+            <div className="table-wrap application-table-wrap"><table className="application-table"><thead><tr>
+              {applicationSortColumns.map(({ column, label }) => <ApplicationSortHeader key={column} column={column} label={label} sorts={applicationSorts} onSort={(selectedColumn) => setApplicationSorts((current) => toggleApplicationSortStack(current, selectedColumn))} />)}
+              <th scope="col"><span className="sr-only">Actions</span></th></tr></thead><tbody>
+              {visibleApplications.map((application) => {
+                const nextInterview = nextInterviewTimestamp(application, agendaNow)
+                return <tr key={application.id}>
+                <td><div className="company-cell"><div className="company-logo" aria-hidden="true">{application.company.slice(0, 1).toUpperCase()}</div><button type="button" className="company-info application-open-button" aria-label={`${application.company} ${application.role}${application.location ? ` ${application.location}` : ''}`} onClick={() => setSelectedApplicationId(application.id)}><strong>{application.company}</strong>{application.skillsAnalyzedAt && application.skillsSourceUrl === application.url && <span className="analysis-status">{application.skills?.length ?? 0} skills analyzed</span>}</button></div></td>
+                <td className="application-role-cell"><strong>{application.role}</strong>{application.location && <span>{application.location}</span>}</td>
                 <td className="date-cell">{formatDate(application.dateApplied)}</td>
                 <td><StatusSelect status={application.status} onChange={(status) => void updateStatus(application.id, status)} /></td>
+                <td className="date-cell">{Number.isFinite(nextInterview)
+                  ? <time dateTime={new Date(nextInterview).toISOString()}>{interviewDateFormatter.format(nextInterview)}</time>
+                  : <span className="muted-text">Not scheduled</span>}</td>
                 <td className="next-step-cell">{application.nextStep || <span className="muted-text">Add a reminder</span>}</td>
                 <td className="application-actions">
                   <button className="row-menu" aria-label={`Manage interviews for ${application.role} at ${application.company}`} title="Manage interviews" onClick={() => setInterviewEditorApplicationId(application.id)}><CalendarDays size={15} /></button>
                   <button className="row-menu edit-application-button" aria-label={`Edit ${application.role} at ${application.company}`} title="Edit application" onClick={() => { setEditingApplication(application); setIsFormOpen(true) }}><Pencil size={15} /></button>
                   <button className="row-menu" aria-label={`Delete ${application.role} at ${application.company}`} title="Delete application" onClick={() => void deleteApplication(application.id)}><X size={16} /></button>
                 </td>
-              </tr>)}
+              </tr>})}
             </tbody></table></div>
           ) : <EmptyState hasApplications={applications.length > 0} onAdd={() => setIsFormOpen(true)} />}
           <div className="panel-footer"><span>Showing <strong>{visibleApplications.length}</strong> of <strong>{applications.length}</strong> applications</span><span className="privacy-note"><span className="privacy-dot" /> Stored securely in your account</span></div>

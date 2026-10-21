@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createHandler } from '../../../supabase/functions/analyze-job-posting/handler'
+import { createHandler, type HandlerDependencies } from '../../../supabase/functions/analyze-job-posting/handler'
 import { SKILL_EXTRACTION_VERSION } from '../../../supabase/functions/analyze-job-posting/analysis-version'
 
 const id = '12345678-1234-1234-1234-123456789abc'
@@ -9,8 +9,8 @@ const html = `<main>${'Build production software with TypeScript and maintain re
 let env: Record<string, string>
 let client: { loadApplication: ReturnType<typeof vi.fn>; readQuestions: ReturnType<typeof vi.fn>; storeQuestions: ReturnType<typeof vi.fn>; saveApplication: ReturnType<typeof vi.fn> }
 let network: ReturnType<typeof vi.fn>
-let dns: ReturnType<typeof vi.fn>
-let factory: ReturnType<typeof vi.fn>
+let dns: ReturnType<typeof vi.fn<HandlerDependencies['resolveDns']>>
+let factory: ReturnType<typeof vi.fn<HandlerDependencies['createClient']>>
 function handler() { return createHandler({ env: (name) => env[name], resolveDns: dns, fetch: network as typeof fetch, createClient: factory }) }
 function request(body: unknown = { applicationId: id }, authorization: string | null = 'Bearer user-token') {
   return new Request('https://function.example.com', { method: 'POST', headers: { ...(authorization ? { Authorization: authorization } : {}), 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
