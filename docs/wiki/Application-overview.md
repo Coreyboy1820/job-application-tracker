@@ -4,13 +4,17 @@
 
 ## Applications
 
-Create a record with company, role, location, application date, posting URL, notes, and next step. Statuses are **Rejected**, **Applied**, **Interviewing**, and **Offer**. Default status ordering follows that sequence and preserves saved order within a status. Older Interested records normalize to Applied. Search company/role/location, filter by status, and sort by status, newest, oldest, or next interview. Records with no future interview come last in next-interview ordering. Open the company/role to view details; row actions edit, delete, or manage interviews.
+Create a record with company, role, location, application date, posting URL, notes, and next step. Statuses are **Rejected**, **Applied**, **Interviewing**, and **Offer**. Default status ordering follows that sequence and preserves saved order within a status. Older Interested records normalize to Applied. Search company/role/location and filter by status. Click **Company**, **Role**, **Date applied**, **Status**, **Next interview**, or **Next step** to add that column to the sort order. The first column clicked has highest priority; subsequent columns break ties. For example, click **Status**, then **Next interview** to order interviews within each status group. Numbered badges and the sort-priority list show precedence; arrows show direction. Clicking an active header reverses its direction without moving its priority. Company and role sort alphabetically, and status follows the default priority above or its reverse. Records tied on every selected column retain saved order.
+
+Remove an individual criterion with its **Remove … sort** control, or use **Clear sorts** to return to default status order and start a new stack. The default status order does not become an invisible primary criterion: the first header clicked after clearing becomes primary. The dropdown shows **Multiple columns** when sorts are stacked; selecting an option starts a new single-column sort.
+
+**Next interview** shows the earliest valid upcoming round's date and time in the device's local time zone. Past rounds are excluded; applications without an upcoming round display **Not scheduled** and stay last within earlier-priority groups in either direction. Empty next steps likewise stay last within earlier groups when sorting that column. Open the company to view application details; row actions edit, delete, or manage interviews.
 
 An **application** is one role at one company. Two applications at the same company remain separate records. A **skill** is extracted from that application's saved posting. Its knowledge level belongs to that application skill, rather than globally to the skill name.
 
-![Desktop application list with fictional records](assets/applications-desktop.png)
+![Desktop applications with sortable column headers and next interview dates](assets/applications-sortable-desktop.png)
 
-![Mobile application list with fictional records](assets/applications-mobile.png)
+![Mobile application table scrolled to the sortable next interview column](assets/applications-sortable-mobile.png)
 
 ## Interviews and Google Calendar
 
