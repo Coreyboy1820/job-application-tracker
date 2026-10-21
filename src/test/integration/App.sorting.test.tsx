@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../../app/App'
 const mocks = vi.hoisted(() => ({ from: vi.fn(), getSession: vi.fn(), onAuthStateChange: vi.fn() }))
@@ -18,8 +18,61 @@ beforeEach(() => {
   mocks.onAuthStateChange.mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } })
   mocks.from.mockReturnValue({ select: () => ({ order: vi.fn().mockResolvedValue({ data: rows, error: null }) }) })
 })
-const visibleCompanies = () => screen.getAllByRole('button', { name: /Engineer/ }).filter((button) => button.classList.contains('application-open-button')).map((button) => button.querySelector('strong')?.textContent)
+const visibleCompanies = () => screen.getAllByRole('button').filter((button) => button.classList.contains('application-open-button')).map((button) => button.querySelector('strong')?.textContent)
 describe('application sorting controls', () => {
+  it('sorts each text/date/status column in both directions and synchronizes the dropdown', async () => {
+    const sortableRows = [
+      { ...rows[0], company: 'Zeta', role: 'Analyst', status: 'Offer', next_step: 'Zebra' },
+      { ...rows[1], company: 'alpha', role: 'Designer', status: 'Rejected', next_step: 'Apple' },
+      { ...rows[2], company: 'Beta', role: 'Engineer', status: 'Applied', next_step: 'Middle' },
+    ]
+    mocks.from.mockReturnValue({ select: () => ({ order: vi.fn().mockResolvedValue({ data: sortableRows, error: null }) }) })
+    render(<App />)
+    await screen.findByRole('button', { name: 'Edit Analyst at Zeta' })
+    const cases = [
+      { header: 'Company', asc: ['alpha', 'Beta', 'Zeta'], desc: ['Zeta', 'Beta', 'alpha'], option: 'company-desc' },
+      { header: 'Role', asc: ['Zeta', 'alpha', 'Beta'], desc: ['Beta', 'alpha', 'Zeta'], option: 'role-desc' },
+      { header: 'Date applied', asc: ['Beta', 'alpha', 'Zeta'], desc: ['Zeta', 'alpha', 'Beta'], option: 'newest' },
+      { header: 'Status', asc: ['alpha', 'Beta', 'Zeta'], desc: ['Zeta', 'Beta', 'alpha'], option: 'status-desc' },
+      { header: 'Next step', asc: ['alpha', 'Beta', 'Zeta'], desc: ['Zeta', 'Beta', 'alpha'], option: 'next-step-desc' },
+    ]
+    for (const { header, asc, desc, option } of cases) {
+      const button = screen.getByRole('button', { name: header })
+      fireEvent.click(button)
+      expect(visibleCompanies()).toEqual(asc)
+      expect(button.closest('th')?.getAttribute('aria-sort')).toBe('ascending')
+      fireEvent.click(button)
+      expect(visibleCompanies()).toEqual(desc)
+      expect(button.closest('th')?.getAttribute('aria-sort')).toBe('descending')
+      expect((screen.getByRole('combobox', { name: 'Sort applications' }) as HTMLSelectElement).value).toBe(option)
+      expect(screen.getAllByRole('columnheader').filter((header) => header.hasAttribute('aria-sort'))).toHaveLength(1)
+    }
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort applications' }), { target: { value: 'company' } })
+    expect(screen.getByRole('columnheader', { name: 'Company' }).getAttribute('aria-sort')).toBe('ascending')
+    expect(visibleCompanies()).toEqual(['alpha', 'Beta', 'Zeta'])
+    fireEvent.change(screen.getByPlaceholderText('Search roles...'), { target: { value: 'Beta' } })
+    expect(visibleCompanies()).toEqual(['Beta'])
+    fireEvent.change(screen.getByPlaceholderText('Search roles...'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('tab', { name: /Applied/ }))
+    expect(visibleCompanies()).toEqual(['Beta'])
+  })
+
+  it('shows the earliest upcoming interview and keeps unscheduled applications last in either direction', async () => {
+    render(<App />)
+    await screen.findByRole('button', { name: /Edit Engineer at Soon interview/ })
+    const later = screen.getByRole('button', { name: 'Later interview Engineer' }).closest('tr')!
+    expect(later.querySelector('time')?.dateTime).toBe(new Date('2099-02-01T10:00').toISOString())
+    expect(later.querySelector('time')?.textContent).toContain('2099')
+    const none = screen.getByRole('button', { name: 'No interview Engineer' }).closest('tr')!
+    expect(within(none).getByRole('cell', { name: 'Not scheduled' })).toBeTruthy()
+    const header = screen.getByRole('button', { name: 'Next interview' })
+    fireEvent.click(header)
+    expect(visibleCompanies()).toEqual(['Soon interview', 'Later interview', 'No interview'])
+    fireEvent.click(header)
+    expect(visibleCompanies()).toEqual(['Later interview', 'Soon interview', 'No interview'])
+    expect(header.closest('th')?.getAttribute('aria-sort')).toBe('descending')
+  })
+
   it('defaults to status priority and removes Interested from filters and selectors', async () => {
     const statusRows = [
       { ...rows[0], status: 'Offer' },

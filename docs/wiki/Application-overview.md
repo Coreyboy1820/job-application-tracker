@@ -4,13 +4,15 @@
 
 ## Applications
 
-Create a record with company, role, location, application date, posting URL, notes, and next step. Statuses are **Rejected**, **Applied**, **Interviewing**, and **Offer**. Default status ordering follows that sequence and preserves saved order within a status. Older Interested records normalize to Applied. Search company/role/location, filter by status, and sort by status, newest, oldest, or next interview. Records with no future interview come last in next-interview ordering. Open the company/role to view details; row actions edit, delete, or manage interviews.
+Create a record with company, role, location, application date, posting URL, notes, and next step. Statuses are **Rejected**, **Applied**, **Interviewing**, and **Offer**. Default status ordering follows that sequence and preserves saved order within a status. Older Interested records normalize to Applied. Search company/role/location and filter by status. Click **Company**, **Role**, **Date applied**, **Status**, **Next interview**, or **Next step** to sort that column; click the same header again to reverse the order. The arrow marks the current direction, and the sort dropdown stays synchronized. Company and role sort alphabetically; company ties use role and role ties use company. Status follows the default priority above, or its reverse.
+
+**Next interview** shows the earliest valid upcoming round's date and time in the device's local time zone. Past rounds are excluded; applications without an upcoming round display **Not scheduled** and stay last in either direction. Empty next steps likewise stay last when sorting that column. Open the company to view application details; row actions edit, delete, or manage interviews.
 
 An **application** is one role at one company. Two applications at the same company remain separate records. A **skill** is extracted from that application's saved posting. Its knowledge level belongs to that application skill, rather than globally to the skill name.
 
-![Desktop application list with fictional records](assets/applications-desktop.png)
+![Desktop applications with sortable column headers and next interview dates](assets/applications-sortable-desktop.png)
 
-![Mobile application list with fictional records](assets/applications-mobile.png)
+![Mobile application table scrolled to the sortable next interview column](assets/applications-sortable-mobile.png)
 
 ## Interviews and Google Calendar
 
