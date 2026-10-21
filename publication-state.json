@@ -3,7 +3,7 @@
   "repository": "Coreyboy1820/job-application-tracker",
   "project": "appgprj_6aca682dbe0c819190f4d76b28122aec",
   "audience": "public",
-  "revision": 13,
+  "revision": 14,
   "operationIds": [
     "268cc303-588a-42b8-b8fd-b143a5f03f51",
     "7e3c5652-2463-4b6f-b130-fd51eae07115",
@@ -18,7 +18,8 @@
     "af6b0171-467f-4e44-8bae-c7229c6cf6b2",
     "d2caa4b5-9ce8-43e2-8020-86ca884ce436",
     "0f8c87b2-093f-43c2-bf6b-38945324ec6d",
-    "56a4d293-5189-476e-b726-e296a179acbb"
+    "56a4d293-5189-476e-b726-e296a179acbb",
+    "ac5276a1-4337-476e-a613-8db037498b9a"
   ],
   "owner": "630646d1-7eee-4fee-9585-34ea3ac53153",
   "releases": [
@@ -44,6 +45,19 @@
         "versionId": "appgprj_6aca682dbe0c819190f4d76b28122aec~appgver_2e547bf791cc8191ba8c93cac862c05e",
         "deploymentId": "appgdep_6ad701e7c5b48191887752fd0b4f2536"
       }
+    },
+    {
+      "id": "8ecb7a59-60b5-4414-aa14-cdfb91a0ba37",
+      "owner": "630646d1-7eee-4fee-9585-34ea3ac53153",
+      "provenance": {
+        "sourceSha": "9c4fd60da6bb0001bb37f1bd05b5f063d87e2e01",
+        "runId": "39549254093",
+        "runAttempt": "1",
+        "artifactId": "12322823514",
+        "archiveSha256": "49acfe2a7f3fb9a4cffb123c2d3310dbf4cbf03c5198cf6200406674d61dcbeb",
+        "sitesSourceSha": "866ca3ba670f7fe6b10acd9175da21e7d0423967"
+      },
+      "status": "pending"
     }
   ]
 }
