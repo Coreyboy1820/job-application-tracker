@@ -3,7 +3,7 @@
   "repository": "Coreyboy1820/job-application-tracker",
   "project": "appgprj_6aca682dbe0c819190f4d76b28122aec",
   "audience": "public",
-  "revision": 28,
+  "revision": 29,
   "operationIds": [
     "268cc303-588a-42b8-b8fd-b143a5f03f51",
     "7e3c5652-2463-4b6f-b130-fd51eae07115",
@@ -33,7 +33,8 @@
     "cd986aeb-90e8-44e6-bf1f-d50a4fb60ebe",
     "881f214c-8046-4431-ba29-9fb68db58856",
     "594d550f-4f9e-4401-966c-d96253c3ab28",
-    "d9c8805c-b7ef-42bf-aee9-14b8c4809aff"
+    "d9c8805c-b7ef-42bf-aee9-14b8c4809aff",
+    "b3f9ab4b-dda1-420b-a898-d6333d73230c"
   ],
   "owner": "6dda284c-7a87-49e0-914f-a90af10a1074",
   "releases": [
@@ -117,9 +118,17 @@
         "archiveSha256": "0622d72cb7a6ba9e6bb65d1b4f281d6972878d85d30ab9a3d2cffcf9bfa2cd9e",
         "sitesSourceSha": "e6e47e604efefec227929926180e69925b7e44ab"
       },
-      "status": "pending",
+      "status": "succeeded",
       "versionId": "appgprj_6aca682dbe0c819190f4d76b28122aec~appgver_6d713baa1ed48191b1874ba25fb4de98",
-      "deploymentId": "appgdep_6ad85749b7788191acf65ac7afec04c1"
+      "deploymentId": "appgdep_6ad85749b7788191acf65ac7afec04c1",
+      "evidence": {
+        "observedAt": "2026-10-21T06:10:25.446Z",
+        "observation": "Native Sites returned terminal succeeded at https://rolecall-private.tealcrow6.chatgpt.site",
+        "publication": "succeeded",
+        "terminalConfirmed": true,
+        "versionId": "appgprj_6aca682dbe0c819190f4d76b28122aec~appgver_6d713baa1ed48191b1874ba25fb4de98",
+        "deploymentId": "appgdep_6ad85749b7788191acf65ac7afec04c1"
+      }
     }
   ]
 }
