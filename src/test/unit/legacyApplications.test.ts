@@ -4,7 +4,9 @@ import { readLegacyApplications } from '../../features/applications/data/legacyA
 const { loadApplications } = vi.hoisted(() => ({ loadApplications: vi.fn() }))
 vi.mock('../../features/applications/data/legacyStorage', () => ({ loadApplications }))
 
-beforeEach(() => loadApplications.mockReset())
+beforeEach(() => {
+  loadApplications.mockReset()
+})
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
