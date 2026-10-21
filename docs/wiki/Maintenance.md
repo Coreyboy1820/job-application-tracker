@@ -6,7 +6,27 @@ Edit the Markdown pages and `assets/` together, have the changes reviewed, then 
 
 Update documentation when user behavior, route/state ownership, dependency versions, schema/RLS, server secrets, setup/test/release commands or external sharing changes. Check the merged implementation, not only issue/PR descriptions. Keep contributor decisions/research in `docs/architecture.md`, `docs/test-coverage.md`, and `docs/chatgpt-interview-handoff.md`; wiki pages link to those stable main-branch sources rather than replacing them.
 
-## Current publication restriction
+## Current publication status
+
+After the owner made the repository public on October 20, 2026, an authenticated
+repository API read confirmed `private: false`, `visibility: public`,
+`has_wiki: true`, and administrator access. The previous Wiki-enablement
+restriction is resolved. An authenticated SSH `git ls-remote` against the wiki
+repository still returns **Repository not found**; the unauthenticated wiki URL
+redirects to the repository. These observations are consistent with a wiki that
+has not had its first page initialized.
+
+Create the initial page in GitHub: open
+[New wiki page](https://github.com/Coreyboy1820/job-application-tracker/wiki/_new),
+use the title **Home**, enter `Rolecall documentation is being prepared.`, and
+click **Save Page**. GitHub documents that the initial page must exist before
+cloning the wiki repository. This session has Git/API access but no authenticated
+browser or wiki-page creation tool, so that first web action remains necessary.
+Afterward, clone the wiki and publish the prepared pages/assets using the steps
+below; the prepared Home page replaces the placeholder. No application PR merge
+is required to initialize the wiki.
+
+## Historical restriction
 
 On October 20, 2026, a read-only repository API recheck still reported `has_wiki: false` for this private repository, with administrator permission available to the authenticated user. The authenticated SSH wiki remote also returned **Repository not found**. No settings, visibility, or billing changes were attempted during this recheck.
 
@@ -14,7 +34,7 @@ On October 19, 2026, authenticated SSH `git ls-remote` against the wiki reposito
 
 Earlier, on October 5, 2026, administrator-authenticated `gh repo edit --enable-wiki` and an explicit repository API update with `has_wiki: true` returned/rechecked `has_wiki: false`. The wiki Git remote returned repository-not-found. Thus the pages cannot currently be published or checked in GitHub's rendered wiki. These are the observed restrictions, not a claim about the account's subscription (the account-plan field was unavailable).
 
-[GitHub documents](https://docs.github.com/en/communities/documenting-your-project-with-wikis/about-wikis) that private-repository wikis require GitHub Pro, Team, or Enterprise, while public-repository wikis are available on Free plans. A repository/account administrator should confirm eligibility, resolve that restriction, and enable Wiki without changing repository visibility or account billing as part of this documentation task. Then initialize Home, push these pages/assets, verify rendered links/images/Mermaid/sidebar, and change README to the live wiki entry point.
+[GitHub documents](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages) that public-repository wikis are available on Free plans and that the initial page is created on GitHub before cloning. The owner independently changed repository visibility; this documentation task did not change visibility or billing. Once Home is initialized, push these pages/assets and verify rendered links/images/Mermaid/sidebar.
 
 ## Copying pages for publication
 
