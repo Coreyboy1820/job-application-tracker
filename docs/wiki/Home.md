@@ -2,7 +2,7 @@
 
 Rolecall is a web application for tracking job applications, scheduling interviews, and turning job-posting skills into interview practice. Sign in with an email/password account to keep application records available across devices.
 
-**Publication status:** these pages are reviewable wiki source. GitHub currently refuses to enable this private repository's wiki; publication and rendered-wiki verification remain pending. See [Maintenance](Maintenance.md) for the evidence and activation steps.
+Read the [published GitHub wiki](https://github.com/Coreyboy1820/job-application-tracker/wiki). Reviewable source pages and screenshots are maintained in `docs/wiki/`; see [Maintenance](Maintenance.md) for the separate wiki publication workflow.
 
 Start with [Application overview](Application-overview.md) for the user journey or [Getting started](Getting-started.md) to run the project. Contributors can follow [Architecture](Architecture.md), [Technology stack](Technology-stack.md), and [Data model and flows](Data-model-and-flows.md).
 

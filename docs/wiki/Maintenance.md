@@ -11,20 +11,21 @@ Update documentation when user behavior, route/state ownership, dependency versi
 After the owner made the repository public on October 20, 2026, an authenticated
 repository API read confirmed `private: false`, `visibility: public`,
 `has_wiki: true`, and administrator access. The previous Wiki-enablement
-restriction is resolved. An authenticated SSH `git ls-remote` against the wiki
-repository still returns **Repository not found**; the unauthenticated wiki URL
-redirects to the repository. These observations are consistent with a wiki that
-has not had its first page initialized.
+restriction is resolved. The owner then initialized Home in GitHub. An
+authenticated SSH read and clone now succeed, with initial wiki commit
+`b00e1f52f9d2889bfdb6a8a986950e725ab28d47` on `master`.
+Publish the prepared pages/assets using the separate wiki Git repository;
+application PR merges do not publish wiki changes. The initial placeholder Home
+is replaced by the documentation entry page while preserving wiki history.
 
-Create the initial page in GitHub: open
-[New wiki page](https://github.com/Coreyboy1820/job-application-tracker/wiki/_new),
-use the title **Home**, enter `Rolecall documentation is being prepared.`, and
-click **Save Page**. GitHub documents that the initial page must exist before
-cloning the wiki repository. This session has Git/API access but no authenticated
-browser or wiki-page creation tool, so that first web action remains necessary.
-Afterward, clone the wiki and publish the prepared pages/assets using the steps
-below; the prepared Home page replaces the placeholder. No application PR merge
-is required to initialize the wiki.
+The documentation was published as wiki commit
+`af51867feceb549adb84fc2c5771f046dbb64265`, with nine content pages, a custom
+sidebar, and 21 image assets. HTTP checks confirmed all nine rendered pages,
+sidebar navigation, all 17 screenshot URLs used in the overview, and all 21
+stored PNG assets. The two architecture diagrams and three data/flow diagrams
+are present as Mermaid blocks in GitHub's rendered HTML; their final interactive
+browser rendering has not been visually verified. Local page/asset links,
+anchors, and Markdown fences passed validation and independent review.
 
 ## Historical restriction
 
@@ -32,7 +33,7 @@ On October 20, 2026, a read-only repository API recheck still reported `has_wiki
 
 On October 19, 2026, authenticated SSH `git ls-remote` against the wiki repository still returned **Repository not found**. A fresh administrator-authenticated repository read confirmed `has_wiki: false`; an explicit `PATCH` requesting `has_wiki: true` returned false and a follow-up read remained false. Repository visibility stayed private. This cannot establish the account subscription or distinguish every possible platform restriction.
 
-Earlier, on October 5, 2026, administrator-authenticated `gh repo edit --enable-wiki` and an explicit repository API update with `has_wiki: true` returned/rechecked `has_wiki: false`. The wiki Git remote returned repository-not-found. Thus the pages cannot currently be published or checked in GitHub's rendered wiki. These are the observed restrictions, not a claim about the account's subscription (the account-plan field was unavailable).
+Earlier, on October 5, 2026, administrator-authenticated `gh repo edit --enable-wiki` and an explicit repository API update with `has_wiki: true` returned/rechecked `has_wiki: false`. The wiki Git remote returned repository-not-found. At that time, the pages could not be published or checked in GitHub's rendered wiki. These were the observed restrictions, not a claim about the account's subscription (the account-plan field was unavailable).
 
 [GitHub documents](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages) that public-repository wikis are available on Free plans and that the initial page is created on GitHub before cloning. The owner independently changed repository visibility; this documentation task did not change visibility or billing. Once Home is initialized, push these pages/assets and verify rendered links/images/Mermaid/sidebar.
 

@@ -28,7 +28,7 @@ Vite prints the development URL, usually `http://localhost:5173`. Run `npm test`
 
 The wiki is published separately from application code. Reviewable pages and sanitized assets live in `docs/wiki/`; publishing requires updating the repository's wiki Git repository.
 
-The target [GitHub wiki](https://github.com/Coreyboy1820/job-application-tracker/wiki) is enabled now that the repository is public. It still needs its first page created in GitHub before the prepared pages can be pushed to its separate Git repository. The [maintenance guide](docs/wiki/Maintenance.md) records the checks and initialization steps.
+Read the [GitHub wiki](https://github.com/Coreyboy1820/job-application-tracker/wiki) for the published documentation. The [maintenance guide](docs/wiki/Maintenance.md) explains how to update its pages and screenshots.
 
 ## Website delivery
 
