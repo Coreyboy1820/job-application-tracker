@@ -28,8 +28,8 @@ Vite prints the development URL, usually `http://localhost:5173`. Run `npm test`
 
 The wiki is published separately from application code. Reviewable pages and sanitized assets live in `docs/wiki/`; publishing requires updating the repository's wiki Git repository.
 
-The target [GitHub wiki](https://github.com/Coreyboy1820/job-application-tracker/wiki) is not published yet: GitHub currently keeps Wiki disabled despite administrator enable requests. The [maintenance guide](docs/wiki/Maintenance.md) records the publishing restriction and activation steps.
+Read the [GitHub wiki](https://github.com/Coreyboy1820/job-application-tracker/wiki) for the published documentation. The [maintenance guide](docs/wiki/Maintenance.md) explains how to update its pages and screenshots.
 
 ## Website delivery
 
-Rolecall is hosted publicly on [ChatGPT Sites](https://rolecall-private.tealcrow6.chatgpt.site). CI prepares tested main-branch build artifacts; automatic publication is not configured yet. See [Sites delivery](docs/sites-delivery.md) for the current limitation, release procedure, and remaining work in issue #59.
+Rolecall is hosted publicly on [ChatGPT Sites](https://rolecall-private.tealcrow6.chatgpt.site). CI prepares tested main-branch build artifacts; an enabled publisher task was read back with the saved authenticated publication and lock protocol. Its trigger filters, connector bindings, and automatic delivery after a subsequent merge remain unverified. See [Sites delivery](docs/sites-delivery.md), [cloud task setup](docs/sites-auto-deploy-task.md), and [publication state](docs/sites-publication-state.md) for current operational evidence and release requirements. Public hosting does not grant access to account-owned application records.

@@ -6,11 +6,36 @@ Edit the Markdown pages and `assets/` together, have the changes reviewed, then 
 
 Update documentation when user behavior, route/state ownership, dependency versions, schema/RLS, server secrets, setup/test/release commands or external sharing changes. Check the merged implementation, not only issue/PR descriptions. Keep contributor decisions/research in `docs/architecture.md`, `docs/test-coverage.md`, and `docs/chatgpt-interview-handoff.md`; wiki pages link to those stable main-branch sources rather than replacing them.
 
-## Current publication restriction
+## Current publication status
 
-On October 5, 2026, administrator-authenticated `gh repo edit --enable-wiki` and an explicit repository API update with `has_wiki: true` returned/rechecked `has_wiki: false`. The wiki Git remote returned repository-not-found. Thus the pages cannot currently be published or checked in GitHub's rendered wiki. These are the observed restrictions, not a claim about the account's subscription (the account-plan field was unavailable).
+After the owner made the repository public on October 20, 2026, an authenticated
+repository API read confirmed `private: false`, `visibility: public`,
+`has_wiki: true`, and administrator access. The previous Wiki-enablement
+restriction is resolved. The owner then initialized Home in GitHub. An
+authenticated SSH read and clone now succeed, with initial wiki commit
+`b00e1f52f9d2889bfdb6a8a986950e725ab28d47` on `master`.
+Publish the prepared pages/assets using the separate wiki Git repository;
+application PR merges do not publish wiki changes. The initial placeholder Home
+is replaced by the documentation entry page while preserving wiki history.
 
-[GitHub documents](https://docs.github.com/en/communities/documenting-your-project-with-wikis/about-wikis) that private-repository wikis require GitHub Pro, Team, or Enterprise, while public-repository wikis are available on Free plans. A repository/account administrator should confirm eligibility, resolve that restriction, and enable Wiki without changing repository visibility or account billing as part of this documentation task. Then initialize Home, push these pages/assets, verify rendered links/images/Mermaid/sidebar, and change README to the live wiki entry point.
+The documentation was published as wiki commit
+`af51867feceb549adb84fc2c5771f046dbb64265`, with nine content pages, a custom
+sidebar, and 21 image assets. HTTP checks confirmed all nine rendered pages,
+sidebar navigation, all 17 screenshot URLs used in the overview, and all 21
+stored PNG assets. The two architecture diagrams and three data/flow diagrams
+are present as Mermaid blocks in GitHub's rendered HTML; their final interactive
+browser rendering has not been visually verified. Local page/asset links,
+anchors, and Markdown fences passed validation and independent review.
+
+## Historical restriction
+
+On October 20, 2026, a read-only repository API recheck still reported `has_wiki: false` for this private repository, with administrator permission available to the authenticated user. The authenticated SSH wiki remote also returned **Repository not found**. No settings, visibility, or billing changes were attempted during this recheck.
+
+On October 19, 2026, authenticated SSH `git ls-remote` against the wiki repository still returned **Repository not found**. A fresh administrator-authenticated repository read confirmed `has_wiki: false`; an explicit `PATCH` requesting `has_wiki: true` returned false and a follow-up read remained false. Repository visibility stayed private. This cannot establish the account subscription or distinguish every possible platform restriction.
+
+Earlier, on October 5, 2026, administrator-authenticated `gh repo edit --enable-wiki` and an explicit repository API update with `has_wiki: true` returned/rechecked `has_wiki: false`. The wiki Git remote returned repository-not-found. At that time, the pages could not be published or checked in GitHub's rendered wiki. These were the observed restrictions, not a claim about the account's subscription (the account-plan field was unavailable).
+
+[GitHub documents](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages) that public-repository wikis are available on Free plans and that the initial page is created on GitHub before cloning. The owner independently changed repository visibility; this documentation task did not change visibility or billing. Once Home is initialized, push these pages/assets and verify rendered links/images/Mermaid/sidebar.
 
 ## Copying pages for publication
 
@@ -45,7 +70,7 @@ Review the wiki checkout diff, commit and push from that checkout, then inspect 
 
 Assets are committed inside the wiki repository, so image references use stable relative `assets/<name>.png` paths rather than branch URLs or local paths. Existing images were captured from production components with fictional Acme/Globex fixtures; no credentials/account data were used. Desktop captures use 1280-pixel widths and mobile captures use 390-pixel widths. Reproduce the current production screen with fictional fixtures, verify responsive layout and interactions, and replace the relevant image with a descriptive filename and alt text. Do not publish a temporary fixture harness or real account screenshot.
 
-Interview images demonstrate agenda/type filters, Skills demonstrates application scope and priority, and practice images demonstrate sticky controls and editable prompt previews. They represent selected main workflows rather than every dialog. Refresh the Skills screenshot when issue #51 merges. Application-list and sign-in captures are created with a fictional in-memory database/auth fixture; no network account data is used.
+Interview images demonstrate agenda/type filters, Skills demonstrates application scope and priority, and practice images demonstrate sticky controls and editable prompt previews. They represent selected main workflows rather than every dialog. Knowledge-control and combined-selection images now reuse sanitized production-component captures from issues #51 and #56. Application-list images now reuse the sanitized status-ordering captures from issue #63. The immediate-save interview editor uses sanitized desktop and mobile captures, including a narrow view showing that its actions remain reachable. Application-list and sign-in captures are created with a fictional in-memory database/auth fixture; no network account data is used.
 
 Mermaid diagrams live in page code blocks. Keep labels short and state when diagram entities are conceptual (embedded JSON is not a table). Verify rendered diagrams and links in GitHub after publication. If a renderer does not support Mermaid, provide a static exported diagram alongside the source.
 
