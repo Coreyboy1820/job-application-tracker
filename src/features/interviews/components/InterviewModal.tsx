@@ -141,7 +141,7 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
         <button className="icon-button" aria-label="Close" onClick={closeEditor} disabled={saving}><X size={18} /></button>
       </header>
 
-      <div style={{ display: 'grid', gap: '16px' }}>
+      <div className="interview-editor-content" style={{ display: 'grid', gap: '16px' }}>
         <p className="muted-text" style={{ margin: 0 }}>Adding, updating, or deleting an interview saves it immediately. Edits and deletions here do not update Google Calendar; manage existing events there.</p>
         <div style={{ display: 'grid', gap: '8px' }}>
           {sortedInterviews.length === 0
@@ -202,7 +202,7 @@ export default function InterviewModal({ application, onClose, onSave, onRecordL
         </form>
       </div>
 
-      <div className="modal-actions" style={{ marginTop: '18px' }}>
+      <div className="modal-actions interview-editor-footer">
         <button type="button" className="text-button" onClick={closeEditor} disabled={saving}>Done</button>
       </div>
     </section>
