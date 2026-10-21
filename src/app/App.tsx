@@ -11,7 +11,7 @@ import { applicationColumns, fromRow, toRow } from '../features/applications/dat
 import type { ApplicationRow } from '../features/applications/data/applicationRow'
 import { readLegacyApplications } from '../features/applications/data/legacyApplications'
 import { statuses } from '../features/applications/statuses'
-import { getApplicationSortState, nextInterviewTimestamp, sortApplications, toggleApplicationSort } from '../features/applications/applicationSort'
+import { getApplicationSortState, nextInterviewTimestamp, sortApplications, toggleApplicationSortStack } from '../features/applications/applicationSort'
 import type { ApplicationSort, ApplicationSortColumn } from '../features/applications/applicationSort'
 import ApplicationModal from '../features/applications/components/ApplicationModal'
 import ApplicationDetailView from '../features/applications/components/ApplicationDetailView'
@@ -46,24 +46,39 @@ const applicationSortOptions: { value: ApplicationSort; label: string }[] = [
   { value: 'next-step-desc', label: 'Next step Z–A' },
 ]
 
+const applicationSortColumns: { column: ApplicationSortColumn; label: string }[] = [
+  { column: 'company', label: 'Company' },
+  { column: 'role', label: 'Role' },
+  { column: 'date-applied', label: 'Date applied' },
+  { column: 'status', label: 'Status' },
+  { column: 'next-interview', label: 'Next interview' },
+  { column: 'next-step', label: 'Next step' },
+]
+
 const interviewDateFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
 })
 
-function ApplicationSortHeader({ column, label, sort, onSort }: {
+function ApplicationSortHeader({ column, label, sorts, onSort }: {
   column: ApplicationSortColumn
   label: string
-  sort: ApplicationSort
+  sorts: readonly ApplicationSort[]
   onSort: (column: ApplicationSortColumn) => void
 }) {
-  const state = getApplicationSortState(sort)
-  const direction = state?.column === column ? state.direction : undefined
+  const priority = sorts.findIndex((sort) => getApplicationSortState(sort)?.column === column)
+  const direction = priority >= 0 ? getApplicationSortState(sorts[priority])?.direction : undefined
   const Icon = direction === 'ascending' ? ArrowUp : direction === 'descending' ? ArrowDown : ArrowUpDown
-  return <th scope="col" aria-sort={direction}>
+  const description = direction
+    ? `Sort priority ${priority + 1} of ${sorts.length}, ${direction}. Activate to reverse direction.`
+    : 'Activate to add this column after the current sort priorities.'
+  return <th scope="col" aria-sort={priority === 0 ? direction : undefined} data-sort-active={direction ? 'true' : undefined}>
     <button type="button" className="column-sort-button" onClick={() => onSort(column)}
+      aria-describedby={`sort-description-${column}`}
       title={`Sort ${label.toLowerCase()} ${direction === 'ascending' ? 'descending' : 'ascending'}`}>
       {label}<Icon size={13} aria-hidden="true" />
+      {priority >= 0 && <span className="column-sort-priority" aria-hidden="true">{priority + 1}</span>}
     </button>
+    <span hidden id={`sort-description-${column}`}>{description}</span>
   </th>
 }
 
@@ -82,7 +97,8 @@ function App() {
   const [dataLoading, setDataLoading] = useState(false)
   const [activeStatus, setActiveStatus] = useState<Status | 'All'>('All')
   const [search, setSearch] = useState('')
-  const [applicationSort, setApplicationSort] = useState<ApplicationSort>('status')
+  const [applicationSorts, setApplicationSorts] = useState<ApplicationSort[]>([])
+  const applicationSort = applicationSorts[0] ?? 'status'
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [interviewEditorApplicationId, setInterviewEditorApplicationId] = useState<string | null>(null)
   const [editingApplication, setEditingApplication] = useState<Application | null>(null)
@@ -215,8 +231,8 @@ function App() {
       .filter((application) => activeStatus === 'All' || application.status === activeStatus)
       .filter((application) =>
         !query || `${application.company} ${application.role} ${application.location}`.toLowerCase().includes(query),
-      ), applicationSort, agendaNow)
-  }, [applications, activeStatus, search, applicationSort, agendaNow])
+      ), applicationSorts.length ? applicationSorts : ['status'], agendaNow)
+  }, [applications, activeStatus, search, applicationSorts, agendaNow])
 
   const activeCount = applications.filter((item) => ['Applied', 'Interviewing'].includes(item.status)).length
   const interviewCount = applications.filter((item) => item.status === 'Interviewing').length
@@ -684,14 +700,28 @@ function App() {
             <div className="tabs" role="tablist" aria-label="Filter by status">
               {(['All', ...statuses] as const).map((status) => <button key={status} role="tab" aria-selected={activeStatus === status} className={`tab ${activeStatus === status ? 'tab-active' : ''}`} onClick={() => setActiveStatus(status)}>{status}<span>{status === 'All' ? applications.length : applications.filter((item) => item.status === status).length}</span></button>)}
             </div>
-            <div className="toolbar-actions"><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search roles..." /></label><label className="sort-control"><span className="sr-only">Sort applications</span><select value={applicationSort} onChange={(event) => setApplicationSort(event.target.value as ApplicationSort)}>{applicationSortOptions.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}</select></label></div>
+            <div className="toolbar-actions"><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search roles..." /></label><label className="sort-control"><span className="sr-only">Sort applications</span><select value={applicationSorts.length > 1 ? 'stacked' : applicationSort} aria-describedby="application-sort-help" onChange={(event) => setApplicationSorts([event.target.value as ApplicationSort])}>{applicationSorts.length > 1 && <option value="stacked" disabled>Multiple columns</option>}{applicationSortOptions.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}</select></label></div>
+          </div>
+          <div className="application-sort-summary">
+            <span id="application-sort-help">Click headers to add priorities. The dropdown starts a new sort.</span>
+            {applicationSorts.length > 0
+              ? <ol aria-label="Sort priority">{applicationSorts.map((sort, index) => {
+                const state = getApplicationSortState(sort)!
+                const label = applicationSortColumns.find(({ column }) => column === state.column)!.label
+                return <li key={state.column}><span>{index + 1}. {label} ({state.direction})</span><button type="button" aria-label={`Remove ${label} sort`} onClick={() => setApplicationSorts((current) => current.filter((item) => item !== sort))}><X size={12} aria-hidden="true" /></button></li>
+              })}</ol>
+              : <span>Default: Status order</span>}
+            <button type="button" className="clear-application-sorts" disabled={!applicationSorts.length} onClick={() => setApplicationSorts([])}>Clear sorts</button>
+            <span role="status" className="sr-only">{applicationSorts.length
+              ? `Sort priority: ${applicationSorts.map((sort, index) => {
+                const state = getApplicationSortState(sort)!
+                return `${index + 1}. ${applicationSortColumns.find(({ column }) => column === state.column)!.label}, ${state.direction}`
+              }).join('; ')}`
+              : 'Default status order. No explicit sort priorities.'}</span>
           </div>
           {dataLoading ? <div className="empty-state"><p>Loading your applications…</p></div> : visibleApplications.length > 0 ? (
             <div className="table-wrap application-table-wrap"><table className="application-table"><thead><tr>
-              {([
-                ['company', 'Company'], ['role', 'Role'], ['date-applied', 'Date applied'],
-                ['status', 'Status'], ['next-interview', 'Next interview'], ['next-step', 'Next step'],
-              ] as const).map(([column, label]) => <ApplicationSortHeader key={column} column={column} label={label} sort={applicationSort} onSort={(selectedColumn) => setApplicationSort((current) => toggleApplicationSort(current, selectedColumn))} />)}
+              {applicationSortColumns.map(({ column, label }) => <ApplicationSortHeader key={column} column={column} label={label} sorts={applicationSorts} onSort={(selectedColumn) => setApplicationSorts((current) => toggleApplicationSortStack(current, selectedColumn))} />)}
               <th scope="col"><span className="sr-only">Actions</span></th></tr></thead><tbody>
               {visibleApplications.map((application) => {
                 const nextInterview = nextInterviewTimestamp(application, agendaNow)

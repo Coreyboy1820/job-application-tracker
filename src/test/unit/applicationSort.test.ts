@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getApplicationSortState, nextInterviewTimestamp, sortApplications, toggleApplicationSort } from '../../features/applications/applicationSort'
+import { getApplicationSortState, nextInterviewTimestamp, sortApplications, toggleApplicationSort, toggleApplicationSortStack } from '../../features/applications/applicationSort'
 import type { ApplicationSort, ApplicationSortColumn } from '../../features/applications/applicationSort'
 import type { Application, Interview } from '../../shared/types'
 
@@ -126,5 +126,82 @@ describe('application column sorting', () => {
     expect(sortApplications(input, 'next-step', now).map((row) => row.id)).toEqual(['alpha', 'tie', 'zebra', 'blank', 'space'])
     expect(sortApplications(input, 'next-step-desc', now).map((row) => row.id)).toEqual(['zebra', 'alpha', 'tie', 'blank', 'space'])
     expect(input[2].nextStep).toBe('  Call recruiter  ')
+  })
+})
+
+
+describe('ordered application sort stacks', () => {
+  const input: Application[] = [
+    { ...application('offer-none', '2026-10-01'), status: 'Offer' },
+    { ...application('applied-later', '2026-10-03', [interview('1', '2026-10-07', '09:00')]), company: 'Zulu' },
+    { ...application('applied-none', '2026-10-02') },
+    { ...application('offer-soon', '2026-10-04', [interview('2', '2026-10-05', '13:00')]), status: 'Offer' },
+    { ...application('applied-soon', '2026-10-05', [interview('3', '2026-10-05', '13:00')]), company: 'Beta' },
+    { ...application('applied-tie', '2026-10-06', [interview('4', '2026-10-05', '13:00')]), company: 'Alpha' },
+  ]
+  const ids = (sort: readonly ApplicationSort[]) => sortApplications(input, sort, now).map((row) => row.id)
+
+  it('appends new columns and toggles existing columns without changing their priority or input', () => {
+    const initial: readonly ApplicationSort[] = ['status', 'next-interview']
+    expect(toggleApplicationSortStack([], 'status')).toEqual(['status'])
+    expect(toggleApplicationSortStack(initial, 'company')).toEqual(['status', 'next-interview', 'company'])
+    expect(toggleApplicationSortStack(initial, 'status')).toEqual(['status-desc', 'next-interview'])
+    expect(toggleApplicationSortStack(initial, 'next-interview')).toEqual(['status', 'next-interview-desc'])
+    expect(toggleApplicationSortStack(['status-desc', 'next-interview-desc'], 'status')).toEqual(['status', 'next-interview-desc'])
+    expect(initial).toEqual(['status', 'next-interview'])
+  })
+
+  it('keeps status primary and sorts upcoming interviews inside each status', () => {
+    expect(ids(['status', 'next-interview'])).toEqual(['applied-soon', 'applied-tie', 'applied-later', 'applied-none', 'offer-soon', 'offer-none'])
+  })
+
+  it('reverses the primary key without reversing secondary interview order', () => {
+    expect(ids(['status-desc', 'next-interview'])).toEqual(['offer-soon', 'offer-none', 'applied-soon', 'applied-tie', 'applied-later', 'applied-none'])
+  })
+
+  it('reverses the secondary key while leaving missing interviews last within each status', () => {
+    expect(ids(['status', 'next-interview-desc'])).toEqual(['applied-later', 'applied-soon', 'applied-tie', 'applied-none', 'offer-soon', 'offer-none'])
+  })
+
+  it('uses a tertiary key only when both earlier keys tie', () => {
+    expect(ids(['status', 'next-interview', 'company'])).toEqual(['applied-tie', 'applied-soon', 'applied-later', 'applied-none', 'offer-soon', 'offer-none'])
+  })
+
+  it('gives the first clicked column priority rather than imposing status priority', () => {
+    const stack = toggleApplicationSortStack(toggleApplicationSortStack([], 'next-interview'), 'status')
+    expect(stack).toEqual(['next-interview', 'status'])
+    expect(ids(stack)).toEqual(['applied-soon', 'applied-tie', 'offer-soon', 'applied-later', 'applied-none', 'offer-none'])
+  })
+
+  it('uses explicit date criteria before any implicit role or company tie-breaker', () => {
+    const companyRows = [
+      { ...application('earlier-z', '2026-10-01'), company: 'Acme', role: 'Zebra' },
+      { ...application('later-a', '2026-10-02'), company: 'ACME', role: 'Analyst' },
+    ]
+    expect(sortApplications(companyRows, ['company', 'oldest'], now).map((row) => row.id)).toEqual(['earlier-z', 'later-a'])
+    const roleRows = companyRows.map((row, index) => ({ ...row, company: index === 0 ? 'Zulu' : 'Alpha', role: 'Engineer' }))
+    expect(sortApplications(roleRows, ['role', 'oldest'], now).map((row) => row.id)).toEqual(['earlier-z', 'later-a'])
+  })
+
+  it('retains saved order when all explicit keys tie, including an empty stack', () => {
+    const tied = [
+      { ...application('first', '2026-10-01'), company: 'Acme', role: 'Zulu' },
+      { ...application('second', '2026-10-01'), company: 'ACME', role: 'Alpha' },
+    ]
+    expect(sortApplications(tied, ['company', 'status'], now).map((row) => row.id)).toEqual(['first', 'second'])
+    expect(sortApplications(input, [], now)).toEqual(input)
+    expect(sortApplications(input, [], now)).not.toBe(input)
+  })
+
+  it('keeps blank next steps last within earlier-key groups in either direction', () => {
+    const stepRows: Application[] = [
+      { ...application('offer-blank', ''), status: 'Offer' },
+      { ...application('applied-blank', ''), nextStep: ' ' },
+      { ...application('offer-step', ''), status: 'Offer', nextStep: 'Call' },
+      { ...application('applied-step', ''), nextStep: 'Write' },
+    ]
+    for (const step of ['next-step', 'next-step-desc'] as const) {
+      expect(sortApplications(stepRows, ['status', step], now).map((row) => row.id)).toEqual(['applied-step', 'applied-blank', 'offer-step', 'offer-blank'])
+    }
   })
 })

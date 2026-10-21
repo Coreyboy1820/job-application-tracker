@@ -34,6 +34,12 @@ export function toggleApplicationSort(current: ApplicationSort, column: Applicat
   return current === ascending ? descending : ascending
 }
 
+export function toggleApplicationSortStack(current: readonly ApplicationSort[], column: ApplicationSortColumn): ApplicationSort[] {
+  const index = current.findIndex((sort) => getApplicationSortState(sort)?.column === column)
+  if (index === -1) return [...current, columnSorts[column][0]]
+  return current.map((sort, position) => position === index ? toggleApplicationSort(sort, column) : sort)
+}
+
 function compareText(a: string, b: string): number {
   return a.localeCompare(b, undefined, { sensitivity: 'base' })
 }
@@ -46,20 +52,24 @@ export function nextInterviewTimestamp(application: Application, now: number): n
   }, Number.POSITIVE_INFINITY)
 }
 
-export function sortApplications(applications: readonly Application[], sort: ApplicationSort, now: number): Application[] {
-  const state = getApplicationSortState(sort)
-  if (!state) return [...applications]
-  const direction = state.direction === 'ascending' ? 1 : -1
-  const nextTimes = state.column === 'next-interview'
+export function sortApplications(applications: readonly Application[], sort: ApplicationSort | readonly ApplicationSort[], now: number): Application[] {
+  const scalar = typeof sort === 'string'
+  const sorts = scalar ? [sort] : sort
+  const states = sorts.flatMap((value) => {
+    const state = getApplicationSortState(value)
+    return state ? [state] : []
+  })
+  const nextTimes = states.some((state) => state.column === 'next-interview')
     ? new Map(applications.map((application) => [application, nextInterviewTimestamp(application, now)]))
     : null
 
-  return [...applications].sort((a, b) => {
+  function compareColumn(a: Application, b: Application, state: NonNullable<ReturnType<typeof getApplicationSortState>>): number {
+    const direction = state.direction === 'ascending' ? 1 : -1
     switch (state.column) {
       case 'company':
-        return direction * (compareText(a.company, b.company) || compareText(a.role, b.role))
+        return direction * (compareText(a.company, b.company) || (scalar ? compareText(a.role, b.role) : 0))
       case 'role':
-        return direction * (compareText(a.role, b.role) || compareText(a.company, b.company))
+        return direction * (compareText(a.role, b.role) || (scalar ? compareText(a.company, b.company) : 0))
       case 'date-applied':
         return direction * a.dateApplied.localeCompare(b.dateApplied)
       case 'status':
@@ -81,5 +91,13 @@ export function sortApplications(applications: readonly Application[], sort: App
         return direction * compareText(aStep, bStep)
       }
     }
+  }
+
+  return [...applications].sort((a, b) => {
+    for (const state of states) {
+      const comparison = compareColumn(a, b, state)
+      if (comparison !== 0) return comparison
+    }
+    return 0
   })
 }

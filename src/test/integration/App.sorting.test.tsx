@@ -37,6 +37,7 @@ describe('application sorting controls', () => {
       { header: 'Next step', asc: ['alpha', 'Beta', 'Zeta'], desc: ['Zeta', 'Beta', 'alpha'], option: 'next-step-desc' },
     ]
     for (const { header, asc, desc, option } of cases) {
+      fireEvent.click(screen.getByRole('button', { name: 'Clear sorts' }))
       const button = screen.getByRole('button', { name: header })
       fireEvent.click(button)
       expect(visibleCompanies()).toEqual(asc)
@@ -55,6 +56,52 @@ describe('application sorting controls', () => {
     fireEvent.change(screen.getByPlaceholderText('Search roles...'), { target: { value: '' } })
     fireEvent.click(screen.getByRole('tab', { name: /Applied/ }))
     expect(visibleCompanies()).toEqual(['Beta'])
+  })
+
+  it('stacks headers in first-click priority, toggles in place, and supports removing and clearing sorts', async () => {
+    const groupedRows = [
+      { ...rows[1], id: 'a', company: 'Atlas', status: 'Applied' },
+      { ...rows[2], id: 'b', company: 'Beacon', status: 'Interviewing' },
+      { ...rows[2], id: 'c', company: 'Cedar', status: 'Applied' },
+      { ...rows[0], id: 'd', company: 'Delta', status: 'Interviewing' },
+    ]
+    mocks.from.mockReturnValue({ select: () => ({ order: vi.fn().mockResolvedValue({ data: groupedRows, error: null }) }) })
+    render(<App />)
+    await screen.findByRole('button', { name: 'Edit Engineer at Atlas' })
+    fireEvent.click(screen.getByRole('button', { name: 'Status' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next interview' }))
+    expect(visibleCompanies()).toEqual(['Cedar', 'Atlas', 'Beacon', 'Delta'])
+    const priorities = () => within(screen.getByRole('list', { name: 'Sort priority' })).getAllByRole('listitem').map((item) => item.textContent)
+    expect(priorities()).toEqual(['1. Status (ascending)', '2. Next interview (ascending)'])
+    expect((screen.getByRole('combobox', { name: 'Sort applications' }) as HTMLSelectElement).value).toBe('stacked')
+    expect(screen.getByRole('columnheader', { name: 'Status' }).getAttribute('aria-sort')).toBe('ascending')
+    expect(screen.getByRole('columnheader', { name: 'Next interview' }).hasAttribute('aria-sort')).toBe(false)
+    expect(screen.getByRole('button', { name: 'Next interview' }).getAttribute('aria-describedby')).toBe('sort-description-next-interview')
+    fireEvent.click(screen.getByRole('button', { name: 'Next interview' }))
+    expect(priorities()).toEqual(['1. Status (ascending)', '2. Next interview (descending)'])
+    expect(visibleCompanies()).toEqual(['Atlas', 'Cedar', 'Beacon', 'Delta'])
+    fireEvent.click(screen.getByRole('button', { name: 'Status' }))
+    expect(priorities()).toEqual(['1. Status (descending)', '2. Next interview (descending)'])
+    expect(visibleCompanies()).toEqual(['Beacon', 'Delta', 'Atlas', 'Cedar'])
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Status sort' }))
+    expect(priorities()).toEqual(['1. Next interview (descending)'])
+    expect(visibleCompanies()).toEqual(['Atlas', 'Beacon', 'Cedar', 'Delta'])
+    expect(screen.getByRole('columnheader', { name: 'Next interview' }).getAttribute('aria-sort')).toBe('descending')
+    fireEvent.click(screen.getByRole('button', { name: 'Clear sorts' }))
+    expect(screen.queryByRole('list', { name: 'Sort priority' })).toBeNull()
+    expect(visibleCompanies()).toEqual(['Atlas', 'Cedar', 'Beacon', 'Delta'])
+    expect((screen.getByRole('button', { name: 'Clear sorts' }) as HTMLButtonElement).disabled).toBe(true)
+    // The default status order does not become an invisible primary criterion.
+    fireEvent.click(screen.getByRole('button', { name: 'Next interview' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Status' }))
+    expect(priorities()).toEqual(['1. Next interview (ascending)', '2. Status (ascending)'])
+    expect(visibleCompanies()).toEqual(['Cedar', 'Beacon', 'Atlas', 'Delta'])
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort applications' }), { target: { value: 'next-interview' } })
+    expect(priorities()).toEqual(['1. Next interview (ascending)'])
+    expect(visibleCompanies()).toEqual(['Beacon', 'Cedar', 'Atlas', 'Delta'])
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort applications' }), { target: { value: 'company-desc' } })
+    expect(priorities()).toEqual(['1. Company (descending)'])
+    expect(visibleCompanies()).toEqual(['Delta', 'Cedar', 'Beacon', 'Atlas'])
   })
 
   it('shows the earliest upcoming interview and keeps unscheduled applications last in either direction', async () => {
